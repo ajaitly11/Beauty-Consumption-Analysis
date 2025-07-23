@@ -1,0 +1,8 @@
+{
+  "recent_mean_growth": 0.11564993592571216,
+  "prior_mean_growth": 0.03243204658568102,
+  "growth_difference": 0.08321788934003113,
+  "t_statistic": 0.4207325148684227,
+  "p_value": 0.1,
+  "is_accelerating": false
+}

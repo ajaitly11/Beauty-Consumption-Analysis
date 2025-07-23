@@ -1,0 +1,29 @@
+[project]
+name = "beauty-income"
+version = "0.1.0"
+description = "Beauty consumption vs. income analysis"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "statsmodels",
+    "ruptures",
+    "python-pptx",
+    "jinja2",
+    "reportlab",
+    "tqdm",
+    "pycountry",
+    "pandera",
+    "tabulate",
+    "openpyxl",
+    "xlrd",
+    "xlwt",
+    "seaborn",
+    "scikit-learn",
+    "scipy>=1.15.3",
+    "pyarrow>=21.0.0",
+]
+
+[tool.uv]

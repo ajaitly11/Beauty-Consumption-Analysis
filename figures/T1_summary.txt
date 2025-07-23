@@ -1,0 +1,14 @@
+Task 1: Statistical Exploration Results Summary
+==============================================
+
+Key Findings:
+1. Beauty consumption shows high income elasticity (β ≈ 2.3)
+2. Strong positive correlation with GDP across all countries
+3. Piecewise regression detects structural breaks around $40-50k GDP per capita
+4. Country heterogeneity in breakpoint timing and plateau behavior
+
+Statistical Evidence:
+- Income elasticity: ~2.3 (luxury good behavior)
+- Strong explanatory power (R² > 0.8)
+- Significant structural breaks in most countries
+- Mixed evidence on plateau behavior post-breakpoint

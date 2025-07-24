@@ -54,15 +54,16 @@ def f_distribution_p(f_stat, df1, df2):
 # Load master dataset
 def load_master_data():
     """Load the master dataset with all categories"""
-    data_path = "data/processed/beauty_income_panel.parquet"
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    data_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
     df = pd.read_parquet(data_path)
-    
+
     # Ensure we have the required columns
     required_cols = ['country', 'year', 'gdppcppp', 'BeautyPC', 'SkincarePC', 'MenPC', 'WomenPC']
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         print(f"Warning: Missing columns {missing_cols}. Using available data.")
-    
+
     return df
 
 def log_log_elasticity(x, y, country_name, series_name):
@@ -304,14 +305,17 @@ def run_hypothesis_testing():
     elasticity_df = pd.DataFrame(elasticity_results)
     
     # Save results
-    results_df.to_csv('figures/T3_piecewise_results.csv', index=False)
-    elasticity_df.to_csv('figures/T3_elasticity_results.csv', index=False)
-    
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    figures_dir.mkdir(exist_ok=True)
+    results_df.to_csv(figures_dir / 'T3_piecewise_results.csv', index=False)
+    elasticity_df.to_csv(figures_dir / 'T3_elasticity_results.csv', index=False)
+
     print(f"\nPiecewise regression completed:")
     print(f"  - {len(results_df)} successful analyses")
-    print(f"  - Results saved to figures/T3_piecewise_results.csv")
-    print(f"  - Elasticity results saved to figures/T3_elasticity_results.csv")
-    
+    print(f"  - Results saved to {figures_dir / 'T3_piecewise_results.csv'}")
+    print(f"  - Elasticity results saved to {figures_dir / 'T3_elasticity_results.csv'}")
+
     return results_df, elasticity_df, df
 
 def create_visualizations(results_df, elasticity_df, master_df):
@@ -429,7 +433,9 @@ def create_small_multiples_chart(results_df, master_df):
             ax.tick_params(labelsize=8)
     
     plt.tight_layout()
-    plt.savefig('figures/HT-1_piecewise_fits_small_multiples.png', dpi=300, bbox_inches='tight')
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    plt.savefig(figures_dir / 'HT-1_piecewise_fits_small_multiples.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("  Created HT-1: Small multiples piecewise fits")
 
@@ -500,7 +506,9 @@ def create_slope_change_chart(results_df):
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.5)
     
     plt.tight_layout()
-    plt.savefig('figures/HT-2_slope_change_bar_chart.png', dpi=300, bbox_inches='tight')
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    plt.savefig(figures_dir / 'HT-2_slope_change_bar_chart.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("  Created HT-2: Slope change bar chart")
 
@@ -551,7 +559,9 @@ def create_breakpoint_histogram(results_df):
     plt.suptitle('Distribution of Income Thresholds by Category\n(Breakpoints where consumption accelerates)', 
                 fontsize=14, fontweight='bold')
     plt.tight_layout()
-    plt.savefig('figures/HT-3_breakpoint_histogram.png', dpi=300, bbox_inches='tight')
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    plt.savefig(figures_dir / 'HT-3_breakpoint_histogram.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("  Created HT-3: Breakpoint histogram")
 
@@ -585,7 +595,9 @@ def create_ftest_heatmap(results_df):
                 transform=cbar.ax.transData, color='red', fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig('figures/HT-4_ftest_heatmap.png', dpi=300, bbox_inches='tight')
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    plt.savefig(figures_dir / 'HT-4_ftest_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("  Created HT-4: F-test significance heatmap")
 
@@ -646,7 +658,9 @@ def create_india_overlay_chart(results_df, master_df):
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('figures/HT-5_india_vs_peers_overlay.png', dpi=300, bbox_inches='tight')
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    figures_dir = script_dir / "figures"
+    plt.savefig(figures_dir / 'HT-5_india_vs_peers_overlay.png', dpi=300, bbox_inches='tight')
     plt.close()
     print("  Created HT-5: India vs emerging peers overlay")
 

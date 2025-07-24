@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 plt.style.use('default')
 
@@ -180,7 +181,9 @@ def simple_ttest_ind(x, y):
 
 def load_master_data():
     """Load the complete master dataset including India"""
-    master = pd.read_parquet("data/processed/beauty_income_panel.parquet")
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    data_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
+    master = pd.read_parquet(data_path)
     return master
 
 def income_matched_snapshot(df):

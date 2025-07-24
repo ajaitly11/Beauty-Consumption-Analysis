@@ -178,7 +178,9 @@ def simple_lowess(y, x, frac=0.4):
 
 def load_master_data():
     """Load master dataset excluding India for Task 1"""
-    master = pd.read_parquet("data/processed/beauty_income_panel.parquet")
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    data_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
+    master = pd.read_parquet(data_path)
     return master[master['country'] != 'india'].copy()
 
 def create_descriptive_plots(df):

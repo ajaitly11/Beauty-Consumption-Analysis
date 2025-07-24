@@ -148,7 +148,9 @@ def load_comtrade_data():
 
 def load_cpi_data():
     """Load and process CPI data from FRED"""
-    cpi_df = pd.read_csv("data/raw/CPIAUCSL.csv")
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    cpi_path = script_dir / "data" / "raw" / "CPIAUCSL.csv"
+    cpi_df = pd.read_csv(cpi_path)
     cpi_df['date'] = pd.to_datetime(cpi_df['observation_date'])
     cpi_df['year'] = cpi_df['date'].dt.year
     
@@ -483,7 +485,8 @@ def create_master_dataset():
     # UAE already excluded from raw data
     
     # Save master dataset
-    output_path = "data/processed/beauty_income_panel.parquet"
+    script_dir = Path(__file__).resolve().parent.parent.parent
+    output_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
     master.to_parquet(output_path, index=False)
     logger.info(f"Master dataset saved to {output_path}")
     logger.info(f"Dataset shape: {master.shape}")

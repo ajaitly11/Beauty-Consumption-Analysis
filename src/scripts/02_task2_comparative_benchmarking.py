@@ -4,6 +4,30 @@ import matplotlib.pyplot as plt
 
 plt.style.use('default')
 
+EMERGING_COUNTRIES = ['brazil', 'china', 'russia', 'mexico', 'india']
+HIGH_INCOME_COUNTRIES = ['japan', 'south korea', 'usa']
+
+# Consistent color palette matching Task 1 exactly (tab10 colors in alphabetical order)
+COUNTRY_COLORS = {
+    'brazil': '#1f77b4',        # Blue (tab10 position 0)
+    'china': '#ff7f0e',         # Orange (tab10 position 1)
+    'france': '#2ca02c',        # Green (tab10 position 2)
+    'germany': '#d62728',       # Red (tab10 position 3)
+    'india': '#9467bd',         # Purple (tab10 position 4)
+    'japan': '#8c564b',         # Brown (tab10 position 5)
+    'mexico': '#e377c2',        # Pink (tab10 position 6)
+    'russia': '#7f7f7f',        # Gray (tab10 position 7)
+    'south korea': '#bcbd22',   # Olive (tab10 position 8)
+    'united kingdom': '#17becf', # Cyan (tab10 position 9)
+    'usa': '#17becf'            # Cyan (same as UK due to tab10 limit)
+}
+
+# Special colors for T1-1 chart (different from country colors)
+T1_CHART_COLORS = {
+    'segments': '#17becf',     # Cyan
+    'overall': '#bcbd22'       # Olive
+}
+
 class SimpleLinearRegression:
     """Simple linear regression to replace sklearn"""
     def __init__(self):
@@ -167,11 +191,13 @@ def income_matched_snapshot(df):
     latest_india = india_data.iloc[-1]  # Use iloc[-1] for most recent
     india_gdp = latest_india['gdppcppp']
     
-    # Find income-matched years for peer countries
-    peers = ['china', 'japan', 'south korea', 'usa']  # All benchmark countries
+    # Find income-matched years for peer countries (both emerging and high income)
+    emerging_peers = [c for c in EMERGING_COUNTRIES if c != 'india']
+    high_income_peers = HIGH_INCOME_COUNTRIES
+    all_peers = emerging_peers + high_income_peers
     matched_results = []
     
-    for peer in peers:
+    for peer in all_peers:
         peer_data = df[df['country'] == peer].copy().sort_values('year')
         if peer_data.empty:
             continue
@@ -224,7 +250,8 @@ def income_matched_snapshot(df):
             'matched_beautypc': matched_year_data['beautypc'],
             'cagr_5y_post_match': cagr_5y,
             'gdp_ratio': gdp_ratio,
-            'is_reasonable_match': is_reasonable_match
+            'is_reasonable_match': is_reasonable_match,
+            'country_type': 'emerging' if peer in emerging_peers else 'high_income'
         })
     
     # Calculate India's recent 5-year CAGR
@@ -240,27 +267,118 @@ def income_matched_snapshot(df):
     # Save results
     matched_df.to_csv("figures/T2-1_income_matched_snapshot.csv", index=False)
     
-    # Create bar chart T2-1
-    _, ax = plt.subplots(figsize=(10, 6))
+    # Create beautified bar chart T2-1 with three categories
+    fig, ax = plt.subplots(figsize=(16, 8))
     
-    countries = matched_df['peer_country'].tolist() + ['india']
-    cagrs = matched_df['cagr_5y_post_match'].tolist() + [india_recent_cagr]
-    colors = ['skyblue'] * len(matched_df) + ['coral']
+    # Separate countries by type
+    emerging_data = matched_df[matched_df['country_type'] == 'emerging']
+    high_income_data = matched_df[matched_df['country_type'] == 'high_income']
     
-    bars = ax.bar(countries, [c * 100 if not pd.isna(c) else 0 for c in cagrs], color=colors)
+    # Prepare data for plotting
+    emerging_countries = emerging_data['peer_country'].tolist()
+    emerging_cagrs = [c * 100 if not pd.isna(c) else 0 for c in emerging_data['cagr_5y_post_match']]
     
-    ax.set_ylabel('5-Year CAGR (%)')
-    ax.set_title('Beauty Consumption Growth: Peers at Similar Income vs India Recent')
-    ax.grid(True, alpha=0.3)
+    high_income_countries = high_income_data['peer_country'].tolist()
+    high_income_cagrs = [c * 100 if not pd.isna(c) else 0 for c in high_income_data['cagr_5y_post_match']]
     
-    # Add value labels on bars
-    for bar, cagr in zip(bars, cagrs):
-        if not pd.isna(cagr):
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, 
-                   f'{cagr*100:.1f}%', ha='center', va='bottom')
+    india_cagr = india_recent_cagr * 100 if not pd.isna(india_recent_cagr) else 0
+    
+    # Create positions with better spacing
+    n_emerging = len(emerging_countries)
+    n_high_income = len(high_income_countries)
+    
+    # Improved spacing: emerging countries, larger gap, India, larger gap, high income countries
+    bar_width = 0.8
+    group_spacing = 2.5  # Larger gaps between groups
+    
+    emerging_positions = [i * (bar_width + 0.3) for i in range(n_emerging)]
+    india_position = emerging_positions[-1] + group_spacing if emerging_positions else group_spacing
+    high_income_start = india_position + group_spacing
+    high_income_positions = [high_income_start + i * (bar_width + 0.3) for i in range(n_high_income)]
+    
+    # Enhanced colors with better contrast
+    emerging_color = '#2E8B57'    # Sea green - darker and more readable
+    india_color = COUNTRY_COLORS['india']  # Dark blue for India
+    high_income_color = '#CD853F'  # Peru - darker salmon for better readability
+    
+    # Plot bars with enhanced styling
+    bars1 = ax.bar(emerging_positions, emerging_cagrs, width=bar_width, color=emerging_color, 
+                   label='Emerging Market Peers', alpha=0.85, edgecolor='white', linewidth=1.5)
+    bars2 = ax.bar([india_position], [india_cagr], width=bar_width, color=india_color, 
+                   label='India (Current)', alpha=0.95, edgecolor='white', linewidth=2)
+    bars3 = ax.bar(high_income_positions, high_income_cagrs, width=bar_width, color=high_income_color, 
+                   label='High Income Countries', alpha=0.85, edgecolor='white', linewidth=1.5)
+    
+    # Add subtle vertical separator lines
+    if emerging_positions:
+        separator1_pos = (emerging_positions[-1] + india_position) / 2
+    else:
+        separator1_pos = india_position - group_spacing/2
+    separator2_pos = (india_position + high_income_positions[0]) / 2 if high_income_positions else india_position + group_spacing/2
+    
+    ax.axvline(x=separator1_pos, color='gray', linestyle=':', alpha=0.6, linewidth=2)
+    ax.axvline(x=separator2_pos, color='gray', linestyle=':', alpha=0.6, linewidth=2)
+    
+    # Set x-axis labels with better formatting
+    all_positions = emerging_positions + [india_position] + high_income_positions
+    all_labels = ([c.replace('_', ' ').title() for c in emerging_countries] + 
+                 ['India'] + 
+                 [c.replace('_', ' ').title() for c in high_income_countries])
+    
+    ax.set_xticks(all_positions)
+    ax.set_xticklabels(all_labels, rotation=0, ha='center', fontsize=11, fontweight='bold')
+    
+    # Add enhanced value labels on bars
+    all_bars = list(bars1) + list(bars2) + list(bars3)
+    all_cagrs = emerging_cagrs + [india_cagr] + high_income_cagrs
+    
+    for bar, cagr in zip(all_bars, all_cagrs):
+        if cagr != 0:
+            # Position label higher for better visibility
+            label_height = bar.get_height() + (ax.get_ylim()[1] * 0.01)
+            ax.text(bar.get_x() + bar.get_width()/2, label_height, 
+                   f'{cagr:.1f}%', ha='center', va='bottom', 
+                   fontsize=10, fontweight='bold', 
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'))
+    
+    # Enhanced styling
+    ax.set_ylabel('5-Year CAGR (%)', fontsize=13, fontweight='bold')
+    ax.set_title('Beauty Consumption Growth: India vs Global Peers\\n' + 
+                'Comparison at Similar Income Levels', 
+                fontsize=15, fontweight='bold', pad=20)
+    
+    # Improved legend positioned to avoid covering values
+    legend = ax.legend(loc='upper right', fontsize=11, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True)
+    legend.get_frame().set_facecolor('white')
+    
+    # Enhanced grid
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Set y-axis limits for better proportion
+    y_max = max(all_cagrs) * 1.15 if all_cagrs else 20
+    ax.set_ylim(min(0, min(all_cagrs) * 1.1), y_max)
+    
+    # Style the axes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    
+    # Add subtle background shading for groups
+    if emerging_positions:
+        ax.axvspan(emerging_positions[0] - bar_width/2, emerging_positions[-1] + bar_width/2, 
+                  alpha=0.05, color=emerging_color, zorder=0)
+    ax.axvspan(india_position - bar_width/2, india_position + bar_width/2, 
+              alpha=0.05, color=india_color, zorder=0)
+    if high_income_positions:
+        ax.axvspan(high_income_positions[0] - bar_width/2, high_income_positions[-1] + bar_width/2, 
+                  alpha=0.05, color=high_income_color, zorder=0)
     
     plt.tight_layout()
-    plt.savefig("figures/T2-1_cagr_comparison.png", dpi=300, bbox_inches='tight')
+    plt.savefig("figures/T2-1_cagr_comparison.png", dpi=300, bbox_inches='tight', 
+                facecolor='white', edgecolor='none')
     plt.close()
     return matched_df, india_gdp
 
@@ -270,7 +388,7 @@ def alignment_chart(df, india_gdp):
     tolerance = 500  # $500 tolerance for GDP matching
     
     # Find Year 0 for each peer country
-    peers = ['china', 'japan', 'south korea', 'usa']
+    peers = [c for c in EMERGING_COUNTRIES if c != 'india']
     alignment_data = []
     
     for peer in peers:
@@ -287,7 +405,7 @@ def alignment_chart(df, india_gdp):
             # Create relative years
             peer_data['rel_year'] = peer_data['year'] - year0
             
-            # Filter to relevant range (0 to +10 years)
+            # Filter to relevant range (0 to +10 years only for peer countries)
             relevant_data = peer_data[(peer_data['rel_year'] >= 0) & (peer_data['rel_year'] <= 10)]
             
             for _, row in relevant_data.iterrows():
@@ -298,80 +416,196 @@ def alignment_chart(df, india_gdp):
                     'year0': year0
                 })
     
-    # Add India at rel_year = 0 (current position)
-    india_latest = df[df['country'] == 'india'].iloc[-1]
-    alignment_data.append({
-        'country': 'india',
-        'rel_year': 0,
-        'beautypc': india_latest['beautypc'],
-        'year0': india_latest['year']
-    })
+    # Add India's trajectory (including years before current position)
+    india_data = df[df['country'] == 'india'].copy().sort_values('year')
+    india_latest_year = india_data.iloc[-1]['year']
+    
+    # Create rel_year for India where 0 = current year
+    india_data['rel_year'] = india_data['year'] - india_latest_year
+    
+    # Filter to relevant range (-5 to 0 years)
+    india_relevant = india_data[(india_data['rel_year'] >= -5) & (india_data['rel_year'] <= 0)]
+    
+    for _, row in india_relevant.iterrows():
+        alignment_data.append({
+            'country': 'india',
+            'rel_year': row['rel_year'],
+            'beautypc': row['beautypc'],
+            'year0': india_latest_year
+        })
     
     alignment_df = pd.DataFrame(alignment_data)
     
-    # Create T2-2 plot
-    plt.figure(figsize=(12, 8))
+    # Create beautified T2-2 plot
+    fig, ax = plt.subplots(figsize=(14, 8))
     
-    colors = {'china': 'red', 'japan': 'blue', 'south korea': 'orange', 'usa': 'purple', 'india': 'green'}
+    # Calculate overall min/max rel_year for enhanced visualization
+    min_rel_year = alignment_df['rel_year'].min() 
+    max_rel_year = alignment_df['rel_year'].max()
     
-    for country in alignment_df['country'].unique():
-        country_data = alignment_df[alignment_df['country'] == country]
+    # Enhanced background shading for India's trajectory period (negative years only)
+    india_data = alignment_df[alignment_df['country'] == 'india'].sort_values('rel_year')
+    if len(india_data) > 0 and min_rel_year < 0:
+        ax.axvspan(min_rel_year, 0, facecolor=COUNTRY_COLORS['india'], alpha=0.08, 
+                  label='India\'s 5-Year Build-up Period', zorder=0)
+    
+    # Draw enhanced vertical line at Year 0 (Today)
+    ax.axvline(x=0, linestyle='-', color='darkred', alpha=0.8, linewidth=3, 
+              label='Today (India\'s Current Position)')
+    
+    # Plot peer countries with enhanced styling (post-milestone only)
+    peer_countries = [c for c in alignment_df['country'].unique() if c != 'india']
+    for country in peer_countries:
+        country_data = alignment_df[alignment_df['country'] == country].sort_values('rel_year')
         
-        if country == 'india':
-            plt.scatter(country_data['rel_year'], country_data['beautypc'], 
-                       color=colors[country], s=100, marker='o', 
-                       label=f'{country.title()} (Current)', zorder=5)
-        else:
-            plt.plot(country_data['rel_year'], country_data['beautypc'], 
-                    'o-', color=colors[country], alpha=0.7, 
-                    label=f'{country.title()} (from Year 0: {country_data.iloc[0]["year0"]})')
+        if len(country_data) > 0:
+            year0_info = country_data[country_data['rel_year'] >= 0]
+            year0_text = f" (milestone: {year0_info.iloc[0]['year0']})" if len(year0_info) > 0 else ""
+            
+            ax.plot(country_data['rel_year'], country_data['beautypc'], 
+                   'o-', color=COUNTRY_COLORS[country], alpha=0.9, linewidth=2.5, 
+                   markersize=6, markeredgecolor='white', markeredgewidth=1,
+                   label=f'{country.title()}{year0_text}', zorder=3)
     
-    plt.xlabel('Years Since GDP Milestone')
-    plt.ylabel('Beauty PC (USD 2015)')
-    plt.title(f'Beauty Consumption Trajectories: Years Since ${india_gdp:,.0f} GDP per capita')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.savefig("figures/T2-2_alignment_chart.png", dpi=300, bbox_inches='tight')
+    # Highlight India's trajectory with enhanced styling
+    if len(india_data) > 0:
+        # Plot India's full trajectory with gradient effect
+        ax.plot(india_data['rel_year'], india_data['beautypc'], 
+               'o-', color=COUNTRY_COLORS['india'], linewidth=4, markersize=8, 
+               alpha=0.95, markeredgecolor='white', markeredgewidth=2,
+               label='India\'s Recent Trajectory (2019-2024)', zorder=5)
+        
+        # Enhanced 'Today' marker
+        india_today = india_data[india_data['rel_year'] == 0]
+        if len(india_today) > 0:
+            today_value = india_today['beautypc'].iloc[0]
+            # Main marker
+            ax.scatter(0, today_value, color=COUNTRY_COLORS['india'], s=400, 
+                      marker='*', edgecolor='darkred', linewidth=3, zorder=10)
+            # Outer ring
+            ax.scatter(0, today_value, color='none', s=600, 
+                      marker='o', edgecolor='darkred', linewidth=2, zorder=9)
+            
+            # Better positioned 'India Today' label (under the star)
+            ax.text(0, today_value - 0.7, 'India Today', 
+                   ha='center', va='top', fontweight='bold', fontsize=12,
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                            edgecolor='darkred', alpha=0.9, linewidth=2))
+    
+    # Enhanced styling and labels
+    ax.set_xlabel('Years Since GDP Milestone\\n(Negative = India\'s Build-up to Current Level)', 
+                 fontsize=12, fontweight='bold')
+    ax.set_ylabel('Beauty Consumption per Capita (USD 2015)', 
+                 fontsize=12, fontweight='bold')
+    ax.set_title(f'Beauty Consumption Growth Trajectories\\n' +
+                f'India\'s 5-Year Journey vs Peers\' Post-Milestone Growth\\n' +
+                f'(Countries reaching ${india_gdp:,.0f} GDP per capita)', 
+                fontsize=14, fontweight='bold', pad=20)
+    
+    # Enhanced legend positioned in top left with larger font
+    legend = ax.legend(loc='upper left', fontsize=11, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True,
+                      bbox_to_anchor=(0.02, 0.98))
+    legend.get_frame().set_facecolor('white')
+    
+    # Enhanced grid and styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Style the axes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    
+    # Set better axis limits
+    y_values = alignment_df['beautypc'].values
+    y_margin = (max(y_values) - min(y_values)) * 0.1
+    ax.set_ylim(min(y_values) - y_margin, max(y_values) + y_margin)
+    
+    plt.tight_layout()
+    plt.savefig("figures/T2-2_alignment_chart.png", dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
     plt.close()
     return alignment_df
 
 def beauty_share_overlay(df):
-    """2.3 BeautyShare overlay plot with distinct colors"""
+    """2.3 Beautified BeautyShare overlay plot with enhanced styling"""
     
-    plt.figure(figsize=(14, 10))
+    fig, ax = plt.subplots(figsize=(16, 10))
     
     countries = df['country'].unique()
     other_countries = [c for c in countries if c != 'india']
-    colors = plt.cm.tab10(np.linspace(0, 1, len(other_countries)))
     
-    # Plot other countries with distinct colors
-    for country, color in zip(other_countries, colors):
+    # Plot other countries with enhanced styling
+    for country in other_countries:
         country_data = df[df['country'] == country]
-        country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['gdppcppp'], country_data['beautyshare'] * 100, 
-                   alpha=0.8, label=country_label, color=color, s=60)
+        country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+        color = COUNTRY_COLORS.get(country, '#666666')  # fallback to gray
+        
+        ax.scatter(country_data['gdppcppp'], country_data['beautyshare'] * 100, 
+                  alpha=0.8, label=country_label, color=color, s=80,
+                  edgecolors='white', linewidth=1, zorder=3)
     
-    # Plot India with special highlighting
+    # Plot India with enhanced highlighting
     india_data = df[df['country'] == 'india']
     if not india_data.empty:
-        # Plot India trajectory in light red
-        plt.plot(india_data['gdppcppp'], india_data['beautyshare'] * 100, 
-                'o-', color='lightcoral', alpha=0.6, linewidth=2, markersize=6, 
-                label='India Trajectory')
+        # Plot India trajectory with enhanced styling
+        ax.plot(india_data['gdppcppp'], india_data['beautyshare'] * 100, 
+               'o-', color=COUNTRY_COLORS['india'], alpha=0.7, linewidth=3, 
+               markersize=8, markerfacecolor=COUNTRY_COLORS['india'],
+               markeredgecolor='white', markeredgewidth=2,
+               label='India Trajectory (1995-2024)', zorder=5)
         
-        # Highlight current India position with distinct color
+        # Enhanced current India position marker
         latest_india = india_data.iloc[-1]
-        plt.scatter(latest_india['gdppcppp'], latest_india['beautyshare'] * 100, 
-                   color='darkred', s=300, marker='*', 
-                   label='India Current (2023)', zorder=10, edgecolor='black', linewidth=2)
+        ax.scatter(latest_india['gdppcppp'], latest_india['beautyshare'] * 100, 
+                  color=COUNTRY_COLORS['india'], s=500, marker='*', 
+                  label='India Current Position (2024)', zorder=10, 
+                  edgecolor='darkred', linewidth=3)
+        
+        # Add annotation for current India position (under the star)
+        ax.annotate('India Today', 
+                   xy=(latest_india['gdppcppp'], latest_india['beautyshare'] * 100),
+                   xytext=(0, -30), textcoords='offset points',
+                   fontsize=12, fontweight='bold', ha='center',
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                            edgecolor=COUNTRY_COLORS['india'], alpha=0.9))
     
-    plt.xlabel('GDP per Capita PPP (2021 International $)')
-    plt.ylabel('Beauty Share of Household Consumption (%)')
-    plt.title('Beauty Consumption Share vs Income: India\'s Position Among Global Peers')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.grid(True, alpha=0.3)
+    # Enhanced styling and labels
+    ax.set_xlabel('GDP per Capita PPP (2021 International $)', 
+                 fontsize=13, fontweight='bold')
+    ax.set_ylabel('Beauty Share of Household Consumption (%)', 
+                 fontsize=13, fontweight='bold')
+    ax.set_title('Beauty Consumption Share vs Income Level\\n' +
+                'India\'s Development Path Among Global Peers', 
+                fontsize=15, fontweight='bold', pad=20)
+    
+    # Enhanced legend with larger font
+    legend = ax.legend(loc='upper left', fontsize=12, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True,
+                      bbox_to_anchor=(0.02, 0.98))
+    legend.get_frame().set_facecolor('white')
+    
+    # Enhanced grid and styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Style the axes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    
+    # Format axis ticks
+    ax.tick_params(axis='both', which='major', labelsize=11)
+    
+    # Add subtle background gradient effect
+    ax.set_facecolor('#fafafa')
+    
     plt.tight_layout()
-    plt.savefig("figures/T2-3_beauty_share_overlay.png", dpi=300, bbox_inches='tight')
+    plt.savefig("figures/T2-3_beauty_share_overlay.png", dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
     plt.close()
     
 
@@ -427,25 +661,73 @@ def rolling_elasticity_india(df):
     
     rolling_df = pd.DataFrame(rolling_results)
     
-    # Create T2-4 plot
-    plt.figure(figsize=(10, 6))
-    plt.plot(rolling_df['end_year'], rolling_df['elasticity'], 'o-', linewidth=2, markersize=6)
-    plt.xlabel('Window End Year')
-    plt.ylabel('Income Elasticity (β)')
-    plt.title('India: Rolling 5-Year Income Elasticity of Beauty Consumption')
-    plt.grid(True, alpha=0.3)
+    # Create beautified T2-4 plot
+    fig, ax = plt.subplots(figsize=(14, 8))
     
-    # Add trend line
+    # Main elasticity line with enhanced styling
+    ax.plot(rolling_df['end_year'], rolling_df['elasticity'], 
+           'o-', color=COUNTRY_COLORS['india'], linewidth=3, markersize=8,
+           markerfacecolor=COUNTRY_COLORS['india'], markeredgecolor='white', 
+           markeredgewidth=2, alpha=0.9, label='5-Year Rolling Elasticity')
+    
+    # Enhanced trend line
     if len(rolling_df) > 2:
         z = np.polyfit(rolling_df['end_year'], rolling_df['elasticity'], 1)
         p = np.poly1d(z)
-        plt.plot(rolling_df['end_year'], p(rolling_df['end_year']), '--', 
-                alpha=0.8, color='red', 
-                label=f'Trend (slope={z[0]:.3f})')
-        plt.legend()
+        trend_color = '#d62728'  # Red for trend
+        ax.plot(rolling_df['end_year'], p(rolling_df['end_year']), '--', 
+                alpha=0.8, color=trend_color, linewidth=2.5,
+                label=f'Linear Trend (slope: {z[0]:.3f}/year)')
+        
+        # Add shaded confidence region around trend
+        trend_values = p(rolling_df['end_year'])
+        residuals = rolling_df['elasticity'] - trend_values
+        std_dev = np.std(residuals)
+        ax.fill_between(rolling_df['end_year'], 
+                       trend_values - std_dev, trend_values + std_dev,
+                       alpha=0.2, color=trend_color, 
+                       label=f'±1 Std Dev ({std_dev:.3f})')
+    
+    # Enhanced styling and labels
+    ax.set_xlabel('Window End Year', fontsize=13, fontweight='bold')
+    ax.set_ylabel('Income Elasticity of Beauty Consumption (β)', fontsize=13, fontweight='bold')
+    ax.set_title('India: Evolution of Income Elasticity\\n' +
+                'Rolling 5-Year Analysis of Beauty Consumption Responsiveness', 
+                fontsize=15, fontweight='bold', pad=20)
+    
+    # Enhanced legend
+    legend = ax.legend(loc='upper right', fontsize=11, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True)
+    legend.get_frame().set_facecolor('white')
+    
+    # Enhanced grid and styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Style the axes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    
+    # Format axis ticks
+    ax.tick_params(axis='both', which='major', labelsize=11)
+    
+    # Add reference line at elasticity = 1 (unit elastic)
+    ax.axhline(y=1, color='gray', linestyle=':', alpha=0.7, linewidth=2,
+              label='Unit Elastic (β=1)')
+    
+    # Add subtle background
+    ax.set_facecolor('#fafafa')
+    
+    # Update legend to include reference line
+    legend = ax.legend(loc='upper right', fontsize=11, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True)
+    legend.get_frame().set_facecolor('white')
     
     plt.tight_layout()
-    plt.savefig("figures/T2-4_rolling_elasticity_india.png", dpi=300, bbox_inches='tight')
+    plt.savefig("figures/T2-4_rolling_elasticity_india.png", dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
     plt.close()
     return rolling_df
 
@@ -490,49 +772,90 @@ def kmeans_clustering(df):
     
     # Countries with cluster changes tracked but not logged
     
-    # Create T2-5: 2D scatter plot with 4 clusters
-    plt.figure(figsize=(14, 10))
+    # Create beautified T2-5: 2D scatter plot with 4 clusters
+    fig, ax = plt.subplots(figsize=(16, 12))
     
-    # Plot points colored by cluster with distinct colors
-    cluster_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']  # Distinct colors for 4 clusters
-    cluster_names = ['Low Income\nLow Beauty', 'Middle Income\nModerate Beauty', 
-                    'High Income\nHigh Beauty', 'Premium\nConsumption']
+    # Enhanced cluster colors and names
+    cluster_colors = ['#3498db', '#e67e22', '#2ecc71', '#e74c3c']  # More vibrant colors
+    cluster_names = ['Developing Markets\\n(Low Income & Spending)', 
+                    'Emerging Markets\\n(Moderate Income & Beauty)', 
+                    'Developed Markets\\n(High Income & Consumption)', 
+                    'Premium Markets\\n(Luxury Consumption)']
     
+    # Plot cluster points with enhanced styling
     for cluster_id in range(optimal_k):
         cluster_data_plot = df_clustered[df_clustered['cluster'] == cluster_id]
         
         if len(cluster_data_plot) == 0:
             continue
             
-        # Use beauty share as point size (scaled to percentage)
-        sizes = (cluster_data_plot['beautyshare'] * 100000).fillna(20)  # Convert to % and scale
-        sizes = np.clip(sizes, 30, 200)  # Reasonable size range
+        # Enhanced size scaling based on beauty share
+        sizes = (cluster_data_plot['beautyshare'] * 150000).fillna(50)  # Better scaling
+        sizes = np.clip(sizes, 50, 300)  # Wider size range for better visibility
         
-        plt.scatter(cluster_data_plot['gdppcppp'], cluster_data_plot['beautypc'],
-                   c=cluster_colors[cluster_id], s=sizes, alpha=0.7, 
-                   label=f'Cluster {cluster_id}: {cluster_names[cluster_id]}', 
-                   edgecolors='white', linewidth=0.5)
+        ax.scatter(cluster_data_plot['gdppcppp'], cluster_data_plot['beautypc'],
+                  c=cluster_colors[cluster_id], s=sizes, alpha=0.7, 
+                  label=f'{cluster_names[cluster_id]}', 
+                  edgecolors='white', linewidth=1.5, zorder=3)
     
-    # Highlight India points with special treatment
+    # Enhanced India trajectory visualization
     if not india_clusters.empty:
-        # Show India's trajectory over time
-        plt.plot(india_clusters['gdppcppp'], india_clusters['beautypc'],
-                'o-', color='darkred', alpha=0.6, linewidth=2, markersize=8,
-                label='India Trajectory', zorder=5)
+        # Show India's development path with gradient effect
+        ax.plot(india_clusters['gdppcppp'], india_clusters['beautypc'],
+               'o-', color=COUNTRY_COLORS['india'], alpha=0.8, linewidth=4, 
+               markersize=10, markerfacecolor=COUNTRY_COLORS['india'],
+               markeredgecolor='white', markeredgewidth=2,
+               label='India\'s Development Path (1995-2024)', zorder=6)
         
-        # Highlight current India position
+        # Enhanced current India position marker
         latest_india = india_clusters.iloc[-1]
-        plt.scatter(latest_india['gdppcppp'], latest_india['beautypc'],
-                   c='darkred', s=400, marker='*', edgecolor='black', linewidth=2,
-                   label='India Current (2023)', zorder=10)
+        ax.scatter(latest_india['gdppcppp'], latest_india['beautypc'],
+                  c=COUNTRY_COLORS['india'], s=600, marker='*', 
+                  edgecolor='darkred', linewidth=3,
+                  label='India Current Position (2024)', zorder=10)
+        
+        # Add annotation for India's current position
+        ax.annotate('India Today', 
+                   xy=(latest_india['gdppcppp'], latest_india['beautypc']),
+                   xytext=(15, 15), textcoords='offset points',
+                   fontsize=12, fontweight='bold',
+                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                            edgecolor=COUNTRY_COLORS['india'], alpha=0.9),
+                   arrowprops=dict(arrowstyle='->', color=COUNTRY_COLORS['india'], lw=2))
     
-    plt.xlabel('GDP per Capita PPP (2021 International $)')
-    plt.ylabel('Beauty Consumption per Capita (USD 2015)')
-    plt.title('Global Beauty Consumption Clusters\n(Point size proportional to Beauty Share of Household Spending)')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.grid(True, alpha=0.3)
+    # Enhanced styling and labels
+    ax.set_xlabel('GDP per Capita PPP (2021 International $)', 
+                 fontsize=14, fontweight='bold')
+    ax.set_ylabel('Beauty Consumption per Capita (USD 2015)', 
+                 fontsize=14, fontweight='bold')
+    ax.set_title('Global Beauty Consumption Clusters\\n' +
+                'India\'s Position in the Global Market', 
+                fontsize=16, fontweight='bold', pad=25)
+    
+    # Enhanced legend positioned inside the plot area
+    legend = ax.legend(loc='upper right', fontsize=10, framealpha=0.95, 
+                      edgecolor='gray', fancybox=True, shadow=True)
+    legend.get_frame().set_facecolor('white')
+    
+    # Enhanced grid and styling
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Style the axes
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    
+    # Format axis ticks
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    
+    # Add subtle background
+    ax.set_facecolor('#fafafa')
+    
     plt.tight_layout()
-    plt.savefig("figures/T2-5_kmeans_scatter.png", dpi=300, bbox_inches='tight')
+    plt.savefig("figures/T2-5_kmeans_scatter.png", dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
     plt.close()
     
     # Create T2-6: India's cluster over time (only if it actually changes)

@@ -92,7 +92,7 @@ def load_worldbank_data():
     return wb_data
 
 def load_comtrade_data():
-    """Load UN Comtrade data for HS 3303-3307"""
+    """Load UN Comtrade data for HS codes including beauty and apparel categories"""
     import csv
     
     comtrade_path = Path("data/raw/comtrade")
@@ -133,6 +133,7 @@ def load_comtrade_data():
     comtrade_df['year'] = comtrade_df['refYear']
     comtrade_df['tradeflow'] = comtrade_df['flowCode']  
     comtrade_df['tradevalue'] = comtrade_df['primaryValue'].fillna(0)
+    comtrade_df['hs_code'] = comtrade_df['cmdCode'].astype(str)
     
     # Filter to mapped countries only
     comtrade_df = comtrade_df.dropna(subset=['country'])
@@ -141,6 +142,7 @@ def load_comtrade_data():
     logger.info(f"Comtrade data shape: {comtrade_df.shape}")
     logger.info(f"Countries in Comtrade after mapping: {sorted(comtrade_df['country'].unique())}")
     logger.info(f"Years range: {comtrade_df['year'].min()}-{comtrade_df['year'].max()}")
+    logger.info(f"HS codes available: {sorted(comtrade_df['hs_code'].unique())}")
     
     return comtrade_df
 
@@ -159,31 +161,122 @@ def load_cpi_data():
     
     return annual_cpi[['year', 'cpi_2015base']]
 
-def build_beauty_proxy(comtrade_df):
-    """Build beauty proxy using three formulas and select best"""
+def build_category_trade_values(comtrade_df):
+    """Build trade values for beauty, skincare, men's wear, and women's wear categories"""
+    
+    # Define HS code categories per Task 3 approach
+    hs_categories = {
+        'beauty': ['3303', '3304', '3305', '3306', '3307'],
+        'skincare': ['3304'],
+        'mens_wear': ['6101', '6103', '6203'],
+        'womens_wear': ['6102', '6104', '6204']
+    }
     
     # First extract re-exports before flow mapping
     re_export_agg = (comtrade_df[comtrade_df['tradeflow'] == 'RX']
-                     .groupby(['country', 'year'])['tradevalue']
+                     .groupby(['country', 'year', 'hs_code'])['tradevalue']
                      .sum().reset_index()
                      .rename(columns={'tradevalue': 're_export'}))
     
-    # Map flow types using flowcode - complete mapping per plan
+    # Map flow types using flowcode - complete mapping including all observed codes
     flow_mapping = {
         'M': 'inbound',    # Import
         'RM': 'inbound',   # Re-import
         'IG': 'inbound',   # Import of goods after outward processing
+        'MIP': 'inbound',  # Import after processing
+        'MOP': 'inbound',  # Import for processing
+        'FM': 'inbound',   # Import from free zones
         'X': 'outbound',   # Export
         'RX': 'outbound',  # Re-export  
         'EG': 'outbound',  # Export of goods after inward processing
         'EO': 'outbound',  # Export of goods for outward processing
+        'XIP': 'outbound', # Export after processing
+        'XOP': 'outbound', # Export for processing
+        'DX': 'outbound',  # Direct export
     }
     
     comtrade_df['flow_type'] = comtrade_df['tradeflow'].map(flow_mapping)
     comtrade_df['flow_type'] = comtrade_df['flow_type'].fillna('other')
     
+    # Aggregate by country-year-hs_code-flow_type
+    trade_agg = (comtrade_df.groupby(['country', 'year', 'hs_code', 'flow_type'])['tradevalue']
+                 .sum().reset_index())
+    
+    # Calculate category totals for each flow type
+    category_results = []
+    
+    for category, hs_codes in hs_categories.items():
+        # Filter to relevant HS codes
+        cat_data = trade_agg[trade_agg['hs_code'].isin(hs_codes)]
+        
+        # Aggregate by flow type
+        cat_pivot = cat_data.groupby(['country', 'year', 'flow_type'])['tradevalue'].sum().reset_index()
+        cat_pivot = cat_pivot.pivot_table(index=['country', 'year'], 
+                                         columns='flow_type', 
+                                         values='tradevalue', 
+                                         fill_value=0).reset_index()
+        
+        # Merge re-export data for this category
+        cat_re_export = re_export_agg[re_export_agg['hs_code'].isin(hs_codes)]
+        cat_re_export_agg = cat_re_export.groupby(['country', 'year'])['re_export'].sum().reset_index()
+        
+        cat_pivot = cat_pivot.merge(cat_re_export_agg, on=['country', 'year'], how='left')
+        cat_pivot['re_export'] = cat_pivot['re_export'].fillna(0)
+        
+        # Calculate proxy using best formula (will be determined from original beauty analysis)
+        inbound = cat_pivot.get('inbound', 0)
+        outbound = cat_pivot.get('outbound', 0)
+        re_export = cat_pivot['re_export']
+        
+        # Use p3_balanced_net as default (can be updated after proxy selection)
+        cat_pivot[f'{category}_nominal_usd'] = inbound - re_export + 0.5 * outbound
+        
+        # Keep only needed columns
+        cat_result = cat_pivot[['country', 'year', f'{category}_nominal_usd']]
+        category_results.append(cat_result)
+    
+    # Merge all categories
+    final_result = category_results[0]
+    for cat_result in category_results[1:]:
+        final_result = final_result.merge(cat_result, on=['country', 'year'], how='outer')
+    
+    return final_result
+
+def build_beauty_proxy(comtrade_df):
+    """Build beauty proxy using three formulas and select best (original function for backward compatibility)"""
+    
+    # Filter to beauty HS codes only for proxy selection
+    beauty_codes = ['3303', '3304', '3305', '3306', '3307']
+    beauty_df = comtrade_df[comtrade_df['hs_code'].isin(beauty_codes)]
+    
+    # First extract re-exports before flow mapping
+    re_export_agg = (beauty_df[beauty_df['tradeflow'] == 'RX']
+                     .groupby(['country', 'year'])['tradevalue']
+                     .sum().reset_index()
+                     .rename(columns={'tradevalue': 're_export'}))
+    
+    # Map flow types using flowcode - complete mapping including all observed codes
+    flow_mapping = {
+        'M': 'inbound',    # Import
+        'RM': 'inbound',   # Re-import
+        'IG': 'inbound',   # Import of goods after outward processing
+        'MIP': 'inbound',  # Import after processing
+        'MOP': 'inbound',  # Import for processing
+        'FM': 'inbound',   # Import from free zones
+        'X': 'outbound',   # Export
+        'RX': 'outbound',  # Re-export  
+        'EG': 'outbound',  # Export of goods after inward processing
+        'EO': 'outbound',  # Export of goods for outward processing
+        'XIP': 'outbound', # Export after processing
+        'XOP': 'outbound', # Export for processing
+        'DX': 'outbound',  # Direct export
+    }
+    
+    beauty_df['flow_type'] = beauty_df['tradeflow'].map(flow_mapping)
+    beauty_df['flow_type'] = beauty_df['flow_type'].fillna('other')
+    
     # Aggregate by country-year-flow_type
-    trade_agg = (comtrade_df.groupby(['country', 'year', 'flow_type'])['tradevalue']
+    trade_agg = (beauty_df.groupby(['country', 'year', 'flow_type'])['tradevalue']
                  .sum().reset_index())
     trade_pivot = trade_agg.pivot_table(index=['country', 'year'], 
                                        columns='flow_type', 
@@ -318,6 +411,9 @@ def create_master_dataset():
     logger.info("Loading Comtrade data...")
     comtrade_df = load_comtrade_data()
     
+    # Debug: Check trade flow codes
+    print("Trade flow codes in data:", sorted(comtrade_df['tradeflow'].unique()))
+    
     logger.info("Loading CPI data...")
     cpi_data = load_cpi_data()
     
@@ -327,46 +423,62 @@ def create_master_dataset():
     logger.info("Selecting best proxy...")
     trade_pivot, chosen_proxy = select_best_proxy(trade_pivot, wb_data)
     
+    logger.info("Building category trade values...")
+    category_data = build_category_trade_values(comtrade_df)
+    
     logger.info("Creating master panel...")
     # Merge all data
     master = wb_data.merge(trade_pivot[['country', 'year', 'beauty_value_nominal_usd']], 
                           on=['country', 'year'], how='outer')
+    master = master.merge(category_data, on=['country', 'year'], how='outer')
     master = master.merge(cpi_data, on='year', how='left')
     
-    # Deflate to 2015 USD first, then per capita
-    master['beauty_value_const2015'] = (master['beauty_value_nominal_usd'] * 
-                                       100 / master['cpi_2015base'])
+    # Explicit deflation step: val_2015 = nominal_usd * (100 / cpi_index)
+    # Standardize on single deflated columns for all categories
+    master['beauty_val_2015'] = (master['beauty_value_nominal_usd'] * 100 / master['cpi_2015base'])
+    master['skincare_val_2015'] = (master['skincare_nominal_usd'] * 100 / master['cpi_2015base'])
+    master['mens_wear_val_2015'] = (master['mens_wear_nominal_usd'] * 100 / master['cpi_2015base'])
+    master['womens_wear_val_2015'] = (master['womens_wear_nominal_usd'] * 100 / master['cpi_2015base'])
     
-    # Create derived metrics
-    master['beautypc'] = master['beauty_value_const2015'] / master['population']
-    master['beautyshare'] = master['beautypc'] / master['ne_con_prvt_pc_kd']
+    # Create standardized per-capita and share metrics for all categories
+    master['BeautyPC'] = master['beauty_val_2015'] / master['population']
+    master['BeautyShare'] = master['BeautyPC'] / master['ne_con_prvt_pc_kd']
     
-    # Log variables (avoid log(0))
+    master['SkincarePC'] = master['skincare_val_2015'] / master['population']
+    master['SkincareShare'] = master['SkincarePC'] / master['ne_con_prvt_pc_kd']
+    
+    master['MenPC'] = master['mens_wear_val_2015'] / master['population']
+    master['MenShare'] = master['MenPC'] / master['ne_con_prvt_pc_kd']
+    
+    master['WomenPC'] = master['womens_wear_val_2015'] / master['population']
+    master['WomenShare'] = master['WomenPC'] / master['ne_con_prvt_pc_kd']
+    
+    # Log variables (avoid log(0)) - use standardized column names
     master['ln_gdppc'] = np.log(master['gdppcppp'].fillna(1))
-    master['ln_beautypc'] = np.log(master['beautypc'].fillna(0) + 1)
+    master['ln_BeautyPC'] = np.log(master['BeautyPC'].fillna(0) + 1)
     
-    # YoY growth
+    # YoY growth - use standardized column names
     master = master.sort_values(['country', 'year'])
-    master['beautypc_growth'] = master.groupby('country')['beautypc'].pct_change(fill_method=None)
+    master['BeautyPC_growth'] = master.groupby('country')['BeautyPC'].pct_change(fill_method=None)
     
     # 5-year CAGR (forward-looking)
     def calc_cagr(series, periods=5):
         return (series.shift(-periods) / series) ** (1/periods) - 1
     
-    master['beautypc_cagr_5y'] = master.groupby('country')['beautypc'].transform(lambda x: calc_cagr(x))
+    master['BeautyPC_cagr_5y'] = master.groupby('country')['BeautyPC'].transform(lambda x: calc_cagr(x))
     
     # Add metadata
     master['chosen_proxy'] = chosen_proxy
     
     # Check for missing data
-    missing_counts = master.groupby('country')[['gdppcppp', 'ne_con_prvt_pc_kd', 'beautypc']].apply(lambda x: x.isnull().sum())
+    missing_counts = master.groupby('country')[['gdppcppp', 'ne_con_prvt_pc_kd', 'BeautyPC']].apply(lambda x: x.isnull().sum())
     if missing_counts.sum().sum() > 0:
         print("Missing data by country:")
         print(missing_counts)
     
     # Clean and filter
-    master = master.dropna(subset=['beautypc', 'gdppcppp'])
-    master = master[master['year'] >= 1995]  # Focus on recent decades
+    master = master.dropna(subset=['BeautyPC', 'gdppcppp'])
+    master = master[master['year'] >= 1985]  # Keep full data range from 1985
     
     # UAE already excluded from raw data
     
@@ -382,8 +494,8 @@ def create_master_dataset():
 if __name__ == "__main__":
     master = create_master_dataset()
     print("\nMaster dataset summary:")
-    print(master.groupby('country')[['year', 'beautypc', 'gdppcppp']].agg({
+    print(master.groupby('country')[['year', 'BeautyPC', 'gdppcppp']].agg({
         'year': ['min', 'max'],
-        'beautypc': ['count', 'mean'],
+        'BeautyPC': ['count', 'mean'],
         'gdppcppp': 'mean'
     }).round(2))

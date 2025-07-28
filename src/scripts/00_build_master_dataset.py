@@ -4,8 +4,6 @@ from pathlib import Path
 import logging
 import scipy.stats
 
-
-
 # Setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -358,18 +356,28 @@ def handle_missing_data(wb_data):
             for var in key_vars:
                 # Only interpolate if there are sufficient surrounding values
                 if country_data[var].isnull().sum() > 0:
-                    # Flag which values will be interpolated
-                    interpolate_mask = country_data[var].isnull()
-                    
-                    # Interpolate
-                    interpolated_values = country_data[var].interpolate(method='linear')
-                    
-                    # Update main dataframe
-                    wb_data.loc[country_mask, var] = interpolated_values
-                    wb_data.loc[country_mask & interpolate_mask, f'{var}_interpolated'] = True
-                    
-                    if interpolate_mask.sum() > 0:
-                        print(f"  {country}: Interpolated {interpolate_mask.sum()} values for {var}")
+                    # Identify consecutive missing values
+                    # Create a series of NaNs and non-NaNs, then group consecutive NaNs
+                    nan_groups = country_data[var].isnull().astype(int).groupby(
+                        country_data[var].notnull().astype(int).cumsum()
+                    ).cumsum()
+
+                    for i in range(len(country_data)):
+                        if country_data[var].iloc[i] is np.nan:
+                            # Check the length of the consecutive NaN block
+                            block_length = nan_groups.iloc[i] - (nan_groups.iloc[i-1] if i > 0 else 0)
+                            
+                            if block_length <= 2:
+                                # Interpolate if gap is 2 years or less
+                                # Need to re-interpolate the whole series for this country and var
+                                # to ensure correct values are picked up.
+                                interpolated_value = country_data[var].interpolate(method='linear').iloc[i]
+                                wb_data.loc[country_mask.index[i], var] = interpolated_value
+                                wb_data.loc[country_mask.index[i], f'{var}_interpolated'] = True
+                                logger.info(f"  {country}: Interpolated 1 value for {var} at year {country_data['year'].iloc[i]} (gap <= 2 years)")
+                            else:
+                                # Leave as NaN if gap is too large
+                                logger.info(f"  {country}: Left 1 value as NaN for {var} at year {country_data['year'].iloc[i]} (gap > 2 years)")
     else:
         print("No missing data detected in key World Bank variables.")
         # Still add flag columns for consistency
@@ -380,7 +388,6 @@ def handle_missing_data(wb_data):
     return wb_data
 
 def create_master_dataset():
-    """Create the master dataset following steps 0.1-0.6"""
     
     logger.info("Loading World Bank data...")
     wb_data = load_worldbank_data()
@@ -435,7 +442,7 @@ def create_master_dataset():
     
     # Log variables (avoid log(0)) - use standardized column names
     master['ln_gdppc'] = np.log(master['gdppcppp'].fillna(1))
-    master['ln_BeautyPC'] = np.log(master['BeautyPC'].fillna(0) + 1)
+    master['ln_BeautyPC'] = np.log(master['BeautyPC'].fillna(0) + 0.01)
     
     # YoY growth - use standardized column names
     master = master.sort_values(['country', 'year'])

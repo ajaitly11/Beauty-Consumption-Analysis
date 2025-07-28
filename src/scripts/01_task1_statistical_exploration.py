@@ -2,6 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+from sklearn.linear_model import LinearRegression
+from scipy import stats
+import statsmodels.api as sm
+from statsmodels.nonparametric.smoothers_lowess import lowess
 
 plt.style.use('default')
 
@@ -10,171 +14,6 @@ T1_CHART_COLORS = {
     'segments': '#17becf',     # Cyan
     'overall': '#bcbd22'       # Olive
 }
-
-class SimpleLinearRegression:
-    """Simple linear regression to replace sklearn"""
-    def __init__(self):
-        self.coef_ = None
-        self.intercept_ = None
-        
-    def fit(self, X, y):
-        X = np.array(X)
-        y = np.array(y)
-        
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
-        
-        # Add intercept column
-        X_with_intercept = np.column_stack([np.ones(len(X)), X])
-        
-        # Calculate coefficients
-        coeffs = np.linalg.solve(X_with_intercept.T @ X_with_intercept, X_with_intercept.T @ y)
-        
-        self.intercept_ = coeffs[0]
-        self.coef_ = coeffs[1:] if len(coeffs) > 2 else coeffs[1]
-        
-        return self
-        
-    def predict(self, X):
-        X = np.array(X)
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
-        
-        if np.isscalar(self.coef_):
-            return self.intercept_ + self.coef_ * X.flatten()
-        else:
-            return self.intercept_ + X @ self.coef_
-
-def pearsonr(x, y):
-    """Simple Pearson correlation coefficient calculation"""
-    x, y = np.array(x), np.array(y)
-    # Remove NaN pairs
-    mask = ~(np.isnan(x) | np.isnan(y))
-    x, y = x[mask], y[mask]
-    
-    if len(x) < 2:
-        return 0.0, 1.0
-    
-    # Calculate correlation
-    r = np.corrcoef(x, y)[0, 1]
-    
-    # Simple p-value approximation for large n
-    n = len(x)
-    if n > 10:
-        t_stat = r * np.sqrt((n-2)/(1-r**2)) if abs(r) < 0.999 else 0
-        p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
-    else:
-        p_value = 0.1
-    
-    return r, p_value
-
-def spearmanr(x, y):
-    """Simple Spearman rank correlation coefficient"""
-    x, y = np.array(x), np.array(y)
-    # Remove NaN pairs
-    mask = ~(np.isnan(x) | np.isnan(y))
-    x, y = x[mask], y[mask]
-    
-    if len(x) < 2:
-        return 0.0, 1.0
-    
-    # Convert to ranks
-    x_ranks = np.argsort(np.argsort(x))
-    y_ranks = np.argsort(np.argsort(y))
-    
-    # Calculate Pearson correlation of ranks
-    return pearsonr(x_ranks, y_ranks)
-
-class SimpleOLS:
-    """Simple OLS regression class to replace statsmodels"""
-    def __init__(self, y, X):
-        self.y = np.array(y)
-        self.X = np.array(X)
-        self.n, self.k = self.X.shape
-        
-        # Calculate coefficients
-        self.params = np.linalg.solve(self.X.T @ self.X, self.X.T @ self.y)
-        
-        # Predictions and residuals
-        self.fittedvalues = self.X @ self.params
-        self.resid = self.y - self.fittedvalues
-        
-        # Standard errors (HC3 robust)
-        self.calculate_robust_se()
-        
-        # R-squared
-        tss = np.sum((self.y - np.mean(self.y))**2)
-        self.rsquared = 1 - np.sum(self.resid**2) / tss
-        
-    def calculate_robust_se(self):
-        """Calculate HC3 robust standard errors"""
-        # Leverage values
-        H = self.X @ np.linalg.inv(self.X.T @ self.X) @ self.X.T
-        h = np.diag(H)
-        
-        # HC3 adjustment
-        omega = np.diag(self.resid**2 / (1 - h)**2)
-        
-        # Robust variance-covariance matrix
-        XTX_inv = np.linalg.inv(self.X.T @ self.X)
-        self.cov_params = XTX_inv @ self.X.T @ omega @ self.X @ XTX_inv
-        
-        # Standard errors
-        self.bse = np.sqrt(np.diag(self.cov_params))
-        
-        # T-statistics and p-values
-        self.tvalues = self.params / self.bse
-        self.pvalues = 2 * (1 - np.abs(self.tvalues) / np.sqrt(self.n - self.k))  # Rough approximation
-        
-    def conf_int(self):
-        """Calculate confidence intervals"""
-        margin = 1.96 * self.bse  # 95% CI
-        return np.column_stack([self.params - margin, self.params + margin])
-        
-    def summary(self):
-        """Simple summary string"""
-        return f"OLS Regression Results\\nR-squared: {self.rsquared:.3f}\\nCoefficients: {self.params}\\nStd Errors: {self.bse}"
-
-def simple_lowess(y, x, frac=0.4):
-    """Simple LOWESS implementation using local linear regression"""
-    x, y = np.array(x), np.array(y)
-    n = len(x)
-    
-    # Sort by x values
-    sort_idx = np.argsort(x)
-    x_sorted = x[sort_idx]
-    y_sorted = y[sort_idx]
-    
-    # Window size
-    window = int(frac * n)
-    if window < 2:
-        window = 2
-    
-    smooth_y = np.zeros(n)
-    
-    for i in range(n):
-        # Find window around point i
-        start = max(0, i - window // 2)
-        end = min(n, start + window)
-        
-        # Fit local linear regression
-        x_local = x_sorted[start:end]
-        y_local = y_sorted[start:end]
-        
-        if len(x_local) > 1:
-            # Simple linear regression
-            X_local = np.column_stack([np.ones(len(x_local)), x_local])
-            try:
-                coeffs = np.linalg.solve(X_local.T @ X_local, X_local.T @ y_local)
-                smooth_y[i] = coeffs[0] + coeffs[1] * x_sorted[i]
-            except:
-                smooth_y[i] = np.mean(y_local)
-        else:
-            smooth_y[i] = y_local[0] if len(y_local) > 0 else 0
-    
-    # Return in original order
-    result = np.column_stack([x_sorted, smooth_y])
-    return result
 
 def load_master_data():
     """Load master dataset excluding India for Task 1"""
@@ -193,8 +32,6 @@ def create_descriptive_plots(df):
     fig_dir = Path("figures")
     fig_dir.mkdir(exist_ok=True)
     
-    # Descriptive plots will now start from T1-3
-    
     # T1-3: Scatter BeautyPC vs GDPpcPPP with LOWESS
     plt.figure(figsize=(12, 8))
     
@@ -208,7 +45,8 @@ def create_descriptive_plots(df):
     
     # Add LOWESS smooth lines with robustness testing
     for i, frac in enumerate([0.3, 0.4, 0.5]):
-        smoothed = simple_lowess(df['BeautyPC'], df['gdppcppp'], frac=frac)
+        # Use statsmodels lowess
+        smoothed = lowess(df['BeautyPC'], df['gdppcppp'], frac=frac)
         color = ['red', 'black', 'blue'][i]
         plt.plot(smoothed[:, 0], smoothed[:, 1], '-', linewidth=2, alpha=0.7, 
                 color=color, label=f'LOWESS (frac={frac})')
@@ -226,25 +64,24 @@ def create_descriptive_plots(df):
     
     # Remove zero values for log transformation and fix log constant
     df_log = df[(df['BeautyPC'] > 0) & (df['gdppcppp'] > 0)].copy()
-    df_log['ln_BeautyPC_fixed'] = np.log(df_log['BeautyPC'] + 0.01)
     df_log['ln_gdppc'] = np.log(df_log['gdppcppp'])
     
     for country, color in zip(countries, colors):
         country_data = df_log[df_log['country'] == country]
         country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['ln_gdppc'], country_data['ln_BeautyPC_fixed'], 
+        plt.scatter(country_data['ln_gdppc'], country_data['ln_BeautyPC'], 
                    alpha=0.8, label=country_label, color=color, s=60)
     
     # Add OLS fit line
     X = df_log['ln_gdppc'].values.reshape(-1, 1)
-    y = df_log['ln_BeautyPC_fixed'].values
-    reg = SimpleLinearRegression().fit(X, y)
+    y = df_log['ln_BeautyPC'].values
+    reg = LinearRegression().fit(X, y)
     
     x_range = np.linspace(df_log['ln_gdppc'].min(), df_log['ln_gdppc'].max(), 100)
     y_pred = reg.predict(x_range.reshape(-1, 1))
     
     plt.plot(x_range, y_pred, 'k-', linewidth=3, 
-             label=f'Income Elasticity = {reg.coef_:.2f}')
+             label=f'Income Elasticity = {reg.coef_[0]:.2f}')
     
     plt.xlabel('Natural Log of GDP per capita PPP (ln of 2021 Int$)')
     plt.ylabel('Natural Log of Beauty Consumption PC (ln of USD 2015)')
@@ -293,12 +130,12 @@ def calculate_correlations(df):
             continue
             
         # BeautyPC vs GDPpcPPP
-        r_gdp, p_gdp = pearsonr(data['BeautyPC'], data['gdppcppp'])
-        rho_gdp, p_rho_gdp = spearmanr(data['BeautyPC'], data['gdppcppp'])
+        r_gdp, p_gdp = stats.pearsonr(data['BeautyPC'], data['gdppcppp'])
+        rho_gdp, p_rho_gdp = stats.spearmanr(data['BeautyPC'], data['gdppcppp'])
         
         # BeautyPC vs HH Consumption
-        r_cons, p_cons = pearsonr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
-        rho_cons, p_rho_cons = spearmanr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
+        r_cons, p_cons = stats.pearsonr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
+        rho_cons, p_rho_cons = stats.spearmanr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
         
         results.append({
             'country': country,
@@ -325,21 +162,20 @@ def run_elasticity_regression(df):
     reg_data = df[(df['BeautyPC'] > 0) & (df['gdppcppp'] > 0)].copy()
     reg_data = reg_data.dropna(subset=['ln_BeautyPC', 'ln_gdppc'])
     
-    # Fix log transformation and run regression
-    reg_data['ln_BeautyPC_fixed'] = np.log(reg_data['BeautyPC'] + 0.01)
-    
     # Run regression: ln(BeautyPC) = alpha + beta * ln(GDPpcPPP) + epsilon
-    X = np.column_stack([np.ones(len(reg_data)), reg_data['ln_gdppc']])  # Add constant
-    y = reg_data['ln_BeautyPC_fixed']
+    X = sm.add_constant(reg_data['ln_gdppc'])  # Add constant
+    y = reg_data['ln_BeautyPC']
     
-    model = SimpleOLS(y, X)  # Our custom OLS with HC3 robust standard errors
+    model = sm.OLS(y, X)
+    results_sm = model.fit(cov_type='HC3') # HC3 robust standard errors
     
     # Extract results
-    beta = model.params[1]  # Slope coefficient
-    se_beta = model.bse[1]
-    ci_lower = model.conf_int()[1, 0]
-    ci_upper = model.conf_int()[1, 1]
-    r_squared = model.rsquared
+    beta = results_sm.params[1]  # Slope coefficient
+    se_beta = results_sm.bse[1]
+    ci_lower = results_sm.conf_int().iloc[1, 0]
+    ci_upper = results_sm.conf_int().iloc[1, 1]
+    r_squared = results_sm.rsquared
+    p_value = results_sm.pvalues[1]
     
     results = {
         'elasticity_beta': beta,
@@ -348,7 +184,7 @@ def run_elasticity_regression(df):
         'ci_upper_95': ci_upper,
         'r_squared': r_squared,
         'n_obs': len(reg_data),
-        'p_value': model.pvalues[1]
+        'p_value': p_value
     }
     
     # Save regression summary
@@ -357,9 +193,9 @@ def run_elasticity_regression(df):
         f.write(f"Regression: ln(BeautyPC) = α + β*ln(GDPpcPPP) + ε\n\n")
         f.write(f"Elasticity (β): {beta:.3f}\nStandard Error: {se_beta:.3f}\n")
         f.write(f"95% CI: [{ci_lower:.3f}, {ci_upper:.3f}]\nR-squared: {r_squared:.3f}\n")
-        f.write(f"P-value: {model.pvalues[1]:.3e}\nN observations: {len(reg_data)}\n")
+        f.write(f"P-value: {p_value:.3e}\nN observations: {len(reg_data)}\n")
     
-    return results, model
+    return results, results_sm
 
 def detect_inflection_point(df):
     """Detect inflection/plateau using piecewise linear regression with comprehensive statistical validation"""
@@ -381,9 +217,11 @@ def detect_inflection_point(df):
     results = []
     
     # Single linear model for comparison
-    single_reg = SimpleLinearRegression().fit(x.reshape(-1, 1), y)
-    single_sse = np.sum((y - single_reg.predict(x.reshape(-1, 1))) ** 2)
-    single_aic = len(data) * np.log(single_sse / len(data)) + 2 * 2
+    X_single = sm.add_constant(x)
+    single_model = sm.OLS(y, X_single)
+    single_results = single_model.fit()
+    single_sse = np.sum(single_results.resid**2)
+    single_aic = single_results.aic
     
     for c in candidates:
         seg1_mask = x <= c
@@ -394,35 +232,39 @@ def detect_inflection_point(df):
         
         try:
             # Fit segments with confidence intervals
-            X1 = np.column_stack([np.ones(sum(seg1_mask)), x[seg1_mask]])
-            X2 = np.column_stack([np.ones(sum(seg2_mask)), x[seg2_mask]])
+            X1 = sm.add_constant(x[seg1_mask])
+            X2 = sm.add_constant(x[seg2_mask])
             
-            model1 = SimpleOLS(y[seg1_mask], X1)
-            model2 = SimpleOLS(y[seg2_mask], X2)
+            model1 = sm.OLS(y[seg1_mask], X1)
+            results1 = model1.fit()
+            model2 = sm.OLS(y[seg2_mask], X2)
+            results2 = model2.fit()
             
-            total_sse = np.sum(model1.resid**2) + np.sum(model2.resid**2)
+            total_sse = np.sum(results1.resid**2) + np.sum(results2.resid**2)
             
             # Calculate AIC and F-test
-            aic = len(data) * np.log(total_sse / len(data)) + 2 * 4
+            aic = results1.aic + results2.aic
             delta_aic = aic - single_aic
             
             # F-test for piecewise vs single model
-            piecewise_df = len(data) - 4  # degrees of freedom for piecewise model
-            f_stat = ((single_sse - total_sse) / 2) / (total_sse / piecewise_df)
-            f_pvalue = 0.05 if f_stat > 3.0 else 0.2  # Rough approximation
+            # F-statistic for comparing nested models (single vs piecewise)
+            # F = ((RSS_restricted - RSS_unrestricted) / (df_restricted - df_unrestricted)) / (RSS_unrestricted / df_unrestricted)
+            # Here, restricted is single model (2 params), unrestricted is piecewise (4 params)
+            f_stat = ((single_sse - total_sse) / (4 - 2)) / (total_sse / (len(data) - 4))
+            f_pvalue = stats.f.sf(f_stat, 2, len(data) - 4)
             
             # Confidence intervals for slopes
-            slope1_ci = model1.conf_int()[1, :]
-            slope2_ci = model2.conf_int()[1, :]
+            slope1_ci = results1.conf_int()[1, :]
+            slope2_ci = results2.conf_int()[1, :]
             
             results.append({
                 'breakpoint': c,
-                'slope1': model1.params[1],
-                'slope2': model2.params[1],
-                'intercept1': model1.params[0],
-                'intercept2': model2.params[0],
-                'slope1_se': model1.bse[1],
-                'slope2_se': model2.bse[1],
+                'slope1': results1.params[1],
+                'slope2': results2.params[1],
+                'intercept1': results1.params[0],
+                'intercept2': results2.params[0],
+                'slope1_se': results1.bse[1],
+                'slope2_se': results2.bse[1],
                 'slope1_ci_lower': slope1_ci[0],
                 'slope1_ci_upper': slope1_ci[1],
                 'slope2_ci_lower': slope2_ci[0],

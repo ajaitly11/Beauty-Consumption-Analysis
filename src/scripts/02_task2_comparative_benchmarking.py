@@ -28,11 +28,7 @@ COUNTRY_COLORS = {
     'usa': '#00008B'            # DarkBlue (unique color for USA)
 }
 
-# Special colors for T1-1 chart (different from country colors)
-T1_CHART_COLORS = {
-    'segments': '#17becf',     # Cyan
-    'overall': '#bcbd22'       # Olive
-}
+
 
 
 

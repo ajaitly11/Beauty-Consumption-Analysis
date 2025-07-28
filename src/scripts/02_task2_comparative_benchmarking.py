@@ -2,6 +2,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import scipy.stats
+import statsmodels.api as sm
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 plt.style.use('default')
 
@@ -20,7 +25,7 @@ COUNTRY_COLORS = {
     'russia': '#7f7f7f',        # Gray (tab10 position 7)
     'south korea': '#bcbd22',   # Olive (tab10 position 8)
     'united kingdom': '#17becf', # Cyan (tab10 position 9)
-    'usa': '#17becf'            # Cyan (same as UK due to tab10 limit)
+    'usa': '#00008B'            # DarkBlue (unique color for USA)
 }
 
 # Special colors for T1-1 chart (different from country colors)
@@ -29,155 +34,13 @@ T1_CHART_COLORS = {
     'overall': '#bcbd22'       # Olive
 }
 
-class SimpleLinearRegression:
-    """Simple linear regression to replace sklearn"""
-    def __init__(self):
-        self.coef_ = None
-        self.intercept_ = None
-        
-    def fit(self, X, y):
-        X = np.array(X)
-        y = np.array(y)
-        
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
-        
-        # Add intercept column
-        X_with_intercept = np.column_stack([np.ones(len(X)), X])
-        
-        # Calculate coefficients
-        coeffs = np.linalg.solve(X_with_intercept.T @ X_with_intercept, X_with_intercept.T @ y)
-        
-        self.intercept_ = coeffs[0]
-        self.coef_ = coeffs[1:] if len(coeffs) > 2 else coeffs[1]
-        
-        return self
-        
-    def predict(self, X):
-        X = np.array(X)
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
-        
-        if np.isscalar(self.coef_):
-            return self.intercept_ + self.coef_ * X.flatten()
-        else:
-            return self.intercept_ + X @ self.coef_
-            
-    def score(self, X, y):
-        """Calculate R-squared"""
-        y_pred = self.predict(X)
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        return 1 - (ss_res / ss_tot)
 
-class SimpleStandardScaler:
-    """Simple standard scaler to replace sklearn"""
-    def __init__(self):
-        self.mean_ = None
-        self.scale_ = None
-        
-    def fit_transform(self, X):
-        X = np.array(X)
-        self.mean_ = np.mean(X, axis=0)
-        self.scale_ = np.std(X, axis=0)
-        return (X - self.mean_) / self.scale_
 
-class SimpleKMeans:
-    """Simple K-means clustering to replace sklearn"""
-    def __init__(self, n_clusters=4, random_state=42, n_init=10):
-        self.n_clusters = n_clusters
-        self.random_state = random_state
-        self.n_init = n_init
-        
-    def fit_predict(self, X):
-        np.random.seed(self.random_state)
-        X = np.array(X)
-        n_samples, n_features = X.shape
-        
-        best_inertia = float('inf')
-        best_labels = None
-        
-        for _ in range(self.n_init):
-            # Initialize centroids randomly
-            centroids = X[np.random.choice(n_samples, self.n_clusters, replace=False)]
-            
-            for _ in range(100):  # Max iterations
-                # Assign points to closest centroid
-                distances = np.sqrt(((X - centroids[:, np.newaxis])**2).sum(axis=2))
-                labels = np.argmin(distances, axis=0)
-                
-                # Update centroids
-                new_centroids = np.array([X[labels == k].mean(axis=0) for k in range(self.n_clusters)])
-                
-                # Check convergence
-                if np.allclose(centroids, new_centroids):
-                    break
-                centroids = new_centroids
-            
-            # Calculate inertia
-            inertia = sum(np.sum((X[labels == k] - centroids[k])**2) for k in range(self.n_clusters))
-            
-            if inertia < best_inertia:
-                best_inertia = inertia
-                best_labels = labels
-        
-        return best_labels
 
-def simple_silhouette_score(X, labels):
-    """Simple silhouette score calculation"""
-    X = np.array(X)
-    n_samples = len(X)
-    n_clusters = len(np.unique(labels))
-    
-    if n_clusters < 2:
-        return 0
-    
-    silhouette_vals = []
-    
-    for i in range(n_samples):
-        # Calculate a(i) - average distance to points in same cluster
-        same_cluster = X[labels == labels[i]]
-        if len(same_cluster) > 1:
-            a_i = np.mean([np.linalg.norm(X[i] - point) for point in same_cluster if not np.array_equal(point, X[i])])
-        else:
-            a_i = 0
-        
-        # Calculate b(i) - min average distance to points in other clusters
-        b_i = float('inf')
-        for cluster in np.unique(labels):
-            if cluster != labels[i]:
-                other_cluster = X[labels == cluster]
-                if len(other_cluster) > 0:
-                    avg_dist = np.mean([np.linalg.norm(X[i] - point) for point in other_cluster])
-                    b_i = min(b_i, avg_dist)
-        
-        # Silhouette coefficient
-        if max(a_i, b_i) > 0:
-            silhouette_vals.append((b_i - a_i) / max(a_i, b_i))
-        else:
-            silhouette_vals.append(0)
-    
-    return np.mean(silhouette_vals)
 
-def simple_ttest_ind(x, y):
-    """Simple independent t-test (Welch's t-test for unequal variances)"""
-    x, y = np.array(x), np.array(y)
-    
-    n1, n2 = len(x), len(y)
-    mean1, mean2 = np.mean(x), np.mean(y)
-    var1, var2 = np.var(x, ddof=1), np.var(y, ddof=1)
-    
-    # Welch's t-statistic
-    pooled_se = np.sqrt(var1/n1 + var2/n2)
-    t_stat = (mean1 - mean2) / pooled_se
-    
-    # Degrees of freedom (Welch-Satterthwaite equation)
-    df = (var1/n1 + var2/n2)**2 / (var1**2/(n1**2*(n1-1)) + var2**2/(n2**2*(n2-1)))
-    
-    # Simple p-value approximation
-    p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
-    
-    return t_stat, p_value
+
+
+
 
 def load_master_data():
     """Load the complete master dataset including India"""
@@ -235,8 +98,8 @@ def income_matched_snapshot(df):
                 future_5y = future_years.iloc[4]  # 5th year of data available
                 actual_years = future_5y['year'] - matched_year_data['year']
             
-            if actual_years > 0 and matched_year_data['beautypc'] > 0:
-                cagr_5y = (future_5y['beautypc'] / matched_year_data['beautypc']) ** (1/actual_years) - 1
+            if actual_years > 0 and matched_year_data['BeautyPC'] > 0:
+                cagr_5y = (future_5y['BeautyPC'] / matched_year_data['BeautyPC']) ** (1/actual_years) - 1
             else:
                 cagr_5y = np.nan
         else:
@@ -250,7 +113,7 @@ def income_matched_snapshot(df):
             'peer_country': peer,
             'matched_year': matched_year_data['year'],
             'matched_gdp': matched_year_data['gdppcppp'],
-            'matched_beautypc': matched_year_data['beautypc'],
+            'matched_BeautyPC': matched_year_data['BeautyPC'],
             'cagr_5y_post_match': cagr_5y,
             'gdp_ratio': gdp_ratio,
             'is_reasonable_match': is_reasonable_match,
@@ -260,7 +123,7 @@ def income_matched_snapshot(df):
     # Calculate India's recent 5-year CAGR
     india_sorted = india_data.sort_values('year')
     if len(india_sorted) >= 6:  # Need 6 points for 5-year CAGR
-        india_recent_cagr = (india_sorted.iloc[-1]['beautypc'] / india_sorted.iloc[-6]['beautypc']) ** (1/5) - 1
+        india_recent_cagr = (india_sorted.iloc[-1]['BeautyPC'] / india_sorted.iloc[-6]['BeautyPC']) ** (1/5) - 1
     else:
         india_recent_cagr = np.nan
     
@@ -415,7 +278,7 @@ def alignment_chart(df, india_gdp):
                 alignment_data.append({
                     'country': peer,
                     'rel_year': row['rel_year'],
-                    'beautypc': row['beautypc'],
+                    'BeautyPC': row['BeautyPC'],
                     'year0': year0
                 })
     
@@ -433,7 +296,7 @@ def alignment_chart(df, india_gdp):
         alignment_data.append({
             'country': 'india',
             'rel_year': row['rel_year'],
-            'beautypc': row['beautypc'],
+            'BeautyPC': row['BeautyPC'],
             'year0': india_latest_year
         })
     
@@ -465,7 +328,7 @@ def alignment_chart(df, india_gdp):
             year0_info = country_data[country_data['rel_year'] >= 0]
             year0_text = f" (milestone: {year0_info.iloc[0]['year0']})" if len(year0_info) > 0 else ""
             
-            ax.plot(country_data['rel_year'], country_data['beautypc'], 
+            ax.plot(country_data['rel_year'], country_data['BeautyPC'], 
                    'o-', color=COUNTRY_COLORS[country], alpha=0.9, linewidth=2.5, 
                    markersize=6, markeredgecolor='white', markeredgewidth=1,
                    label=f'{country.title()}{year0_text}', zorder=3)
@@ -473,7 +336,7 @@ def alignment_chart(df, india_gdp):
     # Highlight India's trajectory with enhanced styling
     if len(india_data) > 0:
         # Plot India's full trajectory with gradient effect
-        ax.plot(india_data['rel_year'], india_data['beautypc'], 
+        ax.plot(india_data['rel_year'], india_data['BeautyPC'], 
                'o-', color=COUNTRY_COLORS['india'], linewidth=4, markersize=8, 
                alpha=0.95, markeredgecolor='white', markeredgewidth=2,
                label='India\'s Recent Trajectory (2019-2024)', zorder=5)
@@ -481,7 +344,7 @@ def alignment_chart(df, india_gdp):
         # Enhanced 'Today' marker
         india_today = india_data[india_data['rel_year'] == 0]
         if len(india_today) > 0:
-            today_value = india_today['beautypc'].iloc[0]
+            today_value = india_today['BeautyPC'].iloc[0]
             # Main marker
             ax.scatter(0, today_value, color=COUNTRY_COLORS['india'], s=400, 
                       marker='*', edgecolor='darkred', linewidth=3, zorder=10)
@@ -522,7 +385,7 @@ def alignment_chart(df, india_gdp):
     ax.spines['bottom'].set_linewidth(1.5)
     
     # Set better axis limits
-    y_values = alignment_df['beautypc'].values
+    y_values = alignment_df['BeautyPC'].values
     y_margin = (max(y_values) - min(y_values)) * 0.1
     ax.set_ylim(min(y_values) - y_margin, max(y_values) + y_margin)
     
@@ -546,7 +409,7 @@ def beauty_share_overlay(df):
         country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
         color = COUNTRY_COLORS.get(country, '#666666')  # fallback to gray
         
-        ax.scatter(country_data['gdppcppp'], country_data['beautyshare'] * 100, 
+        ax.scatter(country_data['gdppcppp'], country_data['BeautyShare'] * 100, 
                   alpha=0.8, label=country_label, color=color, s=80,
                   edgecolors='white', linewidth=1, zorder=3)
     
@@ -554,7 +417,7 @@ def beauty_share_overlay(df):
     india_data = df[df['country'] == 'india']
     if not india_data.empty:
         # Plot India trajectory with enhanced styling
-        ax.plot(india_data['gdppcppp'], india_data['beautyshare'] * 100, 
+        ax.plot(india_data['gdppcppp'], india_data['BeautyShare'] * 100, 
                'o-', color=COUNTRY_COLORS['india'], alpha=0.7, linewidth=3, 
                markersize=8, markerfacecolor=COUNTRY_COLORS['india'],
                markeredgecolor='white', markeredgewidth=2,
@@ -562,14 +425,14 @@ def beauty_share_overlay(df):
         
         # Enhanced current India position marker
         latest_india = india_data.iloc[-1]
-        ax.scatter(latest_india['gdppcppp'], latest_india['beautyshare'] * 100, 
+        ax.scatter(latest_india['gdppcppp'], latest_india['BeautyShare'] * 100, 
                   color=COUNTRY_COLORS['india'], s=500, marker='*', 
                   label='India Current Position (2024)', zorder=10, 
                   edgecolor='darkred', linewidth=3)
         
         # Add annotation for current India position (under the star)
         ax.annotate('India Today', 
-                   xy=(latest_india['gdppcppp'], latest_india['beautyshare'] * 100),
+                   xy=(latest_india['gdppcppp'], latest_india['BeautyShare'] * 100),
                    xytext=(0, -30), textcoords='offset points',
                    fontsize=12, fontweight='bold', ha='center',
                    bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
@@ -628,7 +491,7 @@ def rolling_elasticity_india(df):
         window_data = india_data.iloc[i-window_size:i].copy()
         
         # Remove zero values for log regression
-        valid_data = window_data[(window_data['beautypc'] > 0) & 
+        valid_data = window_data[(window_data['BeautyPC'] > 0) & 
                                 (window_data['gdppcppp'] > 0)]
         
         if len(valid_data) < 3:
@@ -637,17 +500,17 @@ def rolling_elasticity_india(df):
         # Simple OLS on logs with relaxed guardrails for debugging
         try:
             X = np.log(valid_data['gdppcppp'].values).reshape(-1, 1)
-            y = np.log(valid_data['beautypc'].values + 0.01)
+            y = np.log(valid_data['BeautyPC'].values + 0.01)
             
-            reg = SimpleLinearRegression().fit(X, y)
-            r_squared = reg.score(X, y)
+            reg = scipy.stats.linregress(X.flatten(), y)
+            r_squared = reg.rvalue**2
             
             # Relaxed guardrails for debugging - was too strict
-            beautypc_var = valid_data['beautypc'].var()
-            if r_squared < 0.1 or beautypc_var < 0.001:
+            BeautyPC_var = valid_data['BeautyPC'].var()
+            if r_squared < 0.1 or BeautyPC_var < 0.001:
                 continue
                 
-            elasticity = reg.coef_
+            elasticity = reg.slope
             end_year = valid_data.iloc[-1]['year']
             
             rolling_results.append({
@@ -738,25 +601,25 @@ def kmeans_clustering(df):
     """2.5 K-means clustering analysis"""
     
     # Prepare data for clustering
-    cluster_data = df[['beautypc', 'gdppcppp', 'beautyshare']].copy()
+    cluster_data = df[['BeautyPC', 'gdppcppp', 'BeautyShare']].copy()
     cluster_data = cluster_data.dropna()
     
     if len(cluster_data) < 10:
         return None, None
     
     # Standardize features (z-score)
-    scaler = SimpleStandardScaler()
+    scaler = StandardScaler()
     features_scaled = scaler.fit_transform(cluster_data)
     # Use 4 clusters as requested for better differentiation
     optimal_k = 4
     
     # Still calculate silhouette score for validation
-    test_kmeans = SimpleKMeans(n_clusters=optimal_k, random_state=42, n_init=10)
+    test_kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
     test_labels = test_kmeans.fit_predict(features_scaled)
-    silhouette_avg = simple_silhouette_score(features_scaled, test_labels)
+    silhouette_avg = silhouette_score(features_scaled, test_labels)
     
     # Final clustering with optimal k
-    final_kmeans = SimpleKMeans(n_clusters=optimal_k, random_state=42, n_init=10)
+    final_kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
     cluster_labels = final_kmeans.fit_predict(features_scaled)
     
     # Add cluster labels back to original data
@@ -793,10 +656,10 @@ def kmeans_clustering(df):
             continue
             
         # Enhanced size scaling based on beauty share
-        sizes = (cluster_data_plot['beautyshare'] * 150000).fillna(50)  # Better scaling
+        sizes = (cluster_data_plot['BeautyShare'] * 150000).fillna(50)  # Better scaling
         sizes = np.clip(sizes, 50, 300)  # Wider size range for better visibility
         
-        ax.scatter(cluster_data_plot['gdppcppp'], cluster_data_plot['beautypc'],
+        ax.scatter(cluster_data_plot['gdppcppp'], cluster_data_plot['BeautyPC'],
                   c=cluster_colors[cluster_id], s=sizes, alpha=0.7, 
                   label=f'{cluster_names[cluster_id]}', 
                   edgecolors='white', linewidth=1.5, zorder=3)
@@ -804,7 +667,7 @@ def kmeans_clustering(df):
     # Enhanced India trajectory visualization
     if not india_clusters.empty:
         # Show India's development path with gradient effect
-        ax.plot(india_clusters['gdppcppp'], india_clusters['beautypc'],
+        ax.plot(india_clusters['gdppcppp'], india_clusters['BeautyPC'],
                'o-', color=COUNTRY_COLORS['india'], alpha=0.8, linewidth=4, 
                markersize=10, markerfacecolor=COUNTRY_COLORS['india'],
                markeredgecolor='white', markeredgewidth=2,
@@ -812,14 +675,14 @@ def kmeans_clustering(df):
         
         # Enhanced current India position marker
         latest_india = india_clusters.iloc[-1]
-        ax.scatter(latest_india['gdppcppp'], latest_india['beautypc'],
+        ax.scatter(latest_india['gdppcppp'], latest_india['BeautyPC'],
                   c=COUNTRY_COLORS['india'], s=600, marker='*', 
                   edgecolor='darkred', linewidth=3,
                   label='India Current Position (2024)', zorder=10)
         
         # Add annotation for India's current position
         ax.annotate('India Today', 
-                   xy=(latest_india['gdppcppp'], latest_india['beautypc']),
+                   xy=(latest_india['gdppcppp'], latest_india['BeautyPC']),
                    xytext=(15, 15), textcoords='offset points',
                    fontsize=12, fontweight='bold',
                    bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
@@ -887,7 +750,7 @@ def test_india_growth_acceleration(df):
         return None
     
     # Calculate YoY growth rates
-    india_data['yoy_growth'] = india_data['beautypc'].pct_change()
+    india_data['yoy_growth'] = india_data['BeautyPC'].pct_change()
     india_data = india_data.dropna(subset=['yoy_growth'])
     
     if len(india_data) < 10:
@@ -901,7 +764,7 @@ def test_india_growth_acceleration(df):
         return None
     
     # Welch's t-test for unequal variances
-    t_stat, p_value = simple_ttest_ind(recent_growth, prior_growth)
+    t_stat, p_value = scipy.stats.ttest_ind(recent_growth, prior_growth, equal_var=False)
     
     recent_mean = recent_growth.mean()
     prior_mean = prior_growth.mean()

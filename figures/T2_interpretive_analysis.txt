@@ -9,28 +9,28 @@ India's Current Position:
 
 Peer Comparisons at Similar Income Levels:
 
-- Brazil: 3.2% (at similar income level)
+- Brazil: 32.8% (at similar income level)
 
 - China: 16.6% (at similar income level)
 
 - Russia: -4.1% (at similar income level)
 
-- Mexico: 15.7% (at similar income level)
+- Mexico: 21.7% (at similar income level)
 
-- Japan: 5.0% (at similar income level)
+- Japan: 12.0% (at similar income level)
 
-- South Korea: 7.3% (at similar income level)
+- South Korea: 28.6% (at similar income level)
 
-- Usa: 5.9% (at similar income level)
+- Usa: 8.8% (at similar income level)
 
 
 Growth Acceleration Analysis:
 - India's recent growth is stable/decelerating
-- Growth difference: 8.32% (p=0.100)
+- Growth difference: 8.32% (p=0.695)
 
 
 Clustering Analysis:
-- India's current cluster: 1
+- India's current cluster: 0
 - Stable cluster membership over time
 
 

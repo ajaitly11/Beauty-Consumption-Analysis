@@ -178,10 +178,11 @@ def simple_lowess(y, x, frac=0.4):
 
 def load_master_data():
     """Load master dataset excluding India for Task 1"""
-    script_dir = Path(__file__).resolve().parent.parent.parent
-    data_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
-    master = pd.read_parquet(data_path)
-    return master[master['country'] != 'india'].copy()
+    master = pd.read_parquet("data/processed/beauty_income_panel.parquet")
+    # Filter out India for Task 1, and filter Brazil data before 1995
+    master = master[master['country'] != 'india'].copy()
+    master = master[(master['country'] != 'brazil') | (master['year'] >= 1995)].copy()
+    return master
 
 def create_descriptive_plots(df):
     """Create descriptive plots T1-1 through T1-6"""
@@ -202,12 +203,12 @@ def create_descriptive_plots(df):
     for country, color in zip(countries, colors):
         country_data = df[df['country'] == country]
         country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['gdppcppp'], country_data['beautypc'], 
+        plt.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
                    alpha=0.8, label=country_label, color=color, s=60)
     
     # Add LOWESS smooth lines with robustness testing
     for i, frac in enumerate([0.3, 0.4, 0.5]):
-        smoothed = simple_lowess(df['beautypc'], df['gdppcppp'], frac=frac)
+        smoothed = simple_lowess(df['BeautyPC'], df['gdppcppp'], frac=frac)
         color = ['red', 'black', 'blue'][i]
         plt.plot(smoothed[:, 0], smoothed[:, 1], '-', linewidth=2, alpha=0.7, 
                 color=color, label=f'LOWESS (frac={frac})')
@@ -217,26 +218,26 @@ def create_descriptive_plots(df):
     plt.title('Beauty Consumption vs GDP per capita')
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig(fig_dir / "T1-3_beautypc_vs_gdppcppp_scatter.png", dpi=300, bbox_inches='tight')
+    plt.savefig(fig_dir / "T1-3_BeautyPC_vs_gdppcppp_scatter.png", dpi=300, bbox_inches='tight')
     plt.close()
     
     # T1-4: Log-log scatter with OLS fit
     plt.figure(figsize=(12, 8))
     
     # Remove zero values for log transformation and fix log constant
-    df_log = df[(df['beautypc'] > 0) & (df['gdppcppp'] > 0)].copy()
-    df_log['ln_beautypc_fixed'] = np.log(df_log['beautypc'] + 0.01)
+    df_log = df[(df['BeautyPC'] > 0) & (df['gdppcppp'] > 0)].copy()
+    df_log['ln_BeautyPC_fixed'] = np.log(df_log['BeautyPC'] + 0.01)
     df_log['ln_gdppc'] = np.log(df_log['gdppcppp'])
     
     for country, color in zip(countries, colors):
         country_data = df_log[df_log['country'] == country]
         country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['ln_gdppc'], country_data['ln_beautypc_fixed'], 
+        plt.scatter(country_data['ln_gdppc'], country_data['ln_BeautyPC_fixed'], 
                    alpha=0.8, label=country_label, color=color, s=60)
     
     # Add OLS fit line
     X = df_log['ln_gdppc'].values.reshape(-1, 1)
-    y = df_log['ln_beautypc_fixed'].values
+    y = df_log['ln_BeautyPC_fixed'].values
     reg = SimpleLinearRegression().fit(X, y)
     
     x_range = np.linspace(df_log['ln_gdppc'].min(), df_log['ln_gdppc'].max(), 100)
@@ -259,7 +260,7 @@ def create_descriptive_plots(df):
     for country, color in zip(countries, colors):
         country_data = df[df['country'] == country]
         country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['gdppcppp'], country_data['beautyshare'], 
+        plt.scatter(country_data['gdppcppp'], country_data['BeautyShare'], 
                    alpha=0.8, label=country_label, color=color, s=60)
     
     plt.xlabel('GDP per capita PPP (2021 Int$)')
@@ -268,7 +269,7 @@ def create_descriptive_plots(df):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(fig_dir / "T1-5_beautyshare_vs_gdppcppp.png", dpi=300, bbox_inches='tight')
+    plt.savefig(fig_dir / "T1-5_BeautyShare_vs_gdppcppp.png", dpi=300, bbox_inches='tight')
     plt.close()
     
     return df_log
@@ -286,30 +287,30 @@ def calculate_correlations(df):
             data = df[df['country'] == country].copy()
         
         # Remove missing values
-        data = data.dropna(subset=['beautypc', 'gdppcppp', 'ne_con_prvt_pc_kd'])
+        data = data.dropna(subset=['BeautyPC', 'gdppcppp', 'ne_con_prvt_pc_kd'])
         
         if len(data) < 3:  # Need at least 3 points for correlation
             continue
             
         # BeautyPC vs GDPpcPPP
-        r_gdp, p_gdp = pearsonr(data['beautypc'], data['gdppcppp'])
-        rho_gdp, p_rho_gdp = spearmanr(data['beautypc'], data['gdppcppp'])
+        r_gdp, p_gdp = pearsonr(data['BeautyPC'], data['gdppcppp'])
+        rho_gdp, p_rho_gdp = spearmanr(data['BeautyPC'], data['gdppcppp'])
         
         # BeautyPC vs HH Consumption
-        r_cons, p_cons = pearsonr(data['beautypc'], data['ne_con_prvt_pc_kd'])
-        rho_cons, p_rho_cons = spearmanr(data['beautypc'], data['ne_con_prvt_pc_kd'])
+        r_cons, p_cons = pearsonr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
+        rho_cons, p_rho_cons = spearmanr(data['BeautyPC'], data['ne_con_prvt_pc_kd'])
         
         results.append({
             'country': country,
             'n_obs': len(data),
-            'r_beautypc_gdp': r_gdp,
-            'p_beautypc_gdp': p_gdp,
-            'rho_beautypc_gdp': rho_gdp,
-            'p_rho_beautypc_gdp': p_rho_gdp,
-            'r_beautypc_cons': r_cons,
-            'p_beautypc_cons': p_cons,
-            'rho_beautypc_cons': rho_cons,
-            'p_rho_beautypc_cons': p_rho_cons
+            'r_BeautyPC_gdp': r_gdp,
+            'p_BeautyPC_gdp': p_gdp,
+            'rho_BeautyPC_gdp': rho_gdp,
+            'p_rho_BeautyPC_gdp': p_rho_gdp,
+            'r_BeautyPC_cons': r_cons,
+            'p_BeautyPC_cons': p_cons,
+            'rho_BeautyPC_cons': rho_cons,
+            'p_rho_BeautyPC_cons': p_rho_cons
         })
     
     corr_df = pd.DataFrame(results)
@@ -321,15 +322,15 @@ def run_elasticity_regression(df):
     """Run OLS regression on logs to estimate elasticity"""
     
     # Remove zero/missing values
-    reg_data = df[(df['beautypc'] > 0) & (df['gdppcppp'] > 0)].copy()
-    reg_data = reg_data.dropna(subset=['ln_beautypc', 'ln_gdppc'])
+    reg_data = df[(df['BeautyPC'] > 0) & (df['gdppcppp'] > 0)].copy()
+    reg_data = reg_data.dropna(subset=['ln_BeautyPC', 'ln_gdppc'])
     
     # Fix log transformation and run regression
-    reg_data['ln_beautypc_fixed'] = np.log(reg_data['beautypc'] + 0.01)
+    reg_data['ln_BeautyPC_fixed'] = np.log(reg_data['BeautyPC'] + 0.01)
     
     # Run regression: ln(BeautyPC) = alpha + beta * ln(GDPpcPPP) + epsilon
     X = np.column_stack([np.ones(len(reg_data)), reg_data['ln_gdppc']])  # Add constant
-    y = reg_data['ln_beautypc_fixed']
+    y = reg_data['ln_BeautyPC_fixed']
     
     model = SimpleOLS(y, X)  # Our custom OLS with HC3 robust standard errors
     
@@ -364,11 +365,11 @@ def detect_inflection_point(df):
     """Detect inflection/plateau using piecewise linear regression with comprehensive statistical validation"""
     
     # Prepare data
-    data = df.dropna(subset=['beautypc', 'gdppcppp']).copy()
+    data = df.dropna(subset=['BeautyPC', 'gdppcppp']).copy()
     data = data.sort_values('gdppcppp')
     
     x = data['gdppcppp'].values
-    y = data['beautypc'].values
+    y = data['BeautyPC'].values
     
     if len(data) < 10:
         return None, None, None
@@ -468,7 +469,7 @@ def create_piecewise_plot(df, best_result):
     for country, color in zip(countries, colors):
         country_data = df[df['country'] == country]
         country_label = country.upper() if country == 'usa' else country.title()
-        plt.scatter(country_data['gdppcppp'], country_data['beautypc'], 
+        plt.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
                    alpha=0.8, label=country_label, color=color, s=60)
     
     # Plot piecewise regression lines
@@ -561,7 +562,7 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         ax2 = ax.twinx()
         
         # Plot Beauty consumption on left axis
-        ax.plot(country_data['year'], country_data['beautypc'], 
+        ax.plot(country_data['year'], country_data['BeautyPC'], 
                'o-', color=BEAUTY_COLOR, linewidth=2.5, markersize=3, 
                alpha=0.9, label='Beauty PC')
         ax.set_ylabel('Beauty PC\n(USD 2015)', fontsize=10, color=BEAUTY_COLOR, fontweight='bold')
@@ -608,7 +609,7 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         ax2 = ax.twinx()
         
         # Plot Beauty consumption on left axis
-        ax.plot(country_data['year'], country_data['beautypc'], 
+        ax.plot(country_data['year'], country_data['BeautyPC'], 
                'o-', color=BEAUTY_COLOR, linewidth=2.5, markersize=3, 
                alpha=0.9, label='Beauty PC')
         ax.set_ylabel('Beauty PC\n(USD 2015)', fontsize=10, color=BEAUTY_COLOR, fontweight='bold')
@@ -666,7 +667,7 @@ def create_t1_2_growth_comparison(df):
     df_growth = df_growth.sort_values(['country', 'year'])
     
     # Calculate year-over-year growth rates
-    df_growth['beauty_growth'] = df_growth.groupby('country')['beautypc'].pct_change() * 100
+    df_growth['beauty_growth'] = df_growth.groupby('country')['BeautyPC'].pct_change() * 100
     df_growth['gdp_growth'] = df_growth.groupby('country')['gdppcppp'].pct_change() * 100
     
     # Remove extreme outliers
@@ -902,7 +903,7 @@ def create_segmented_comparison_plot(df, segmented_results):
                 if country in df['country'].values:
                     country_data = segment_data[segment_data['country'] == country]
                     country_label = country.upper() if country == 'usa' else country.title()
-                    ax.scatter(country_data['gdppcppp'], country_data['beautypc'], 
+                    ax.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
                              alpha=0.6, s=40, label=country_label)
             
             # Plot piecewise regression lines

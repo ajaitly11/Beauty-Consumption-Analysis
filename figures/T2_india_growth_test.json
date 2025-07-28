@@ -3,6 +3,6 @@
   "prior_mean_growth": 0.03243204658568102,
   "growth_difference": 0.08321788934003113,
   "t_statistic": 0.4207325148684227,
-  "p_value": 0.1,
+  "p_value": 0.695072073892135,
   "is_accelerating": false
 }

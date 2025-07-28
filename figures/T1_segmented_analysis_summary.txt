@@ -3,30 +3,30 @@ Segmented Inflection Point Analysis
 
 OECD MARKETS:
 Countries: usa, germany, france, japan, united kingdom, south korea
-Observations: 180 (6 countries)
-Breakpoint: $47,815 GDP per capita
-Pre-breakpoint slope: $2.47 per $1000 GDP
-Post-breakpoint slope: $-2.70 per $1000 GDP
+Observations: 201 (6 countries)
+Breakpoint: $47,840 GDP per capita
+Pre-breakpoint slope: $1.96 per $1000 GDP
+Post-breakpoint slope: $-2.63 per $1000 GDP
 Statistical significance: No
 Plateau behavior: No
 ------------------------------
 
 EMERGING MARKETS:
 Countries: russia, brazil, china, mexico
-Observations: 116 (4 countries)
-Breakpoint: $18,808 GDP per capita
-Pre-breakpoint slope: $0.16 per $1000 GDP
-Post-breakpoint slope: $0.20 per $1000 GDP
+Observations: 124 (4 countries)
+Breakpoint: $20,030 GDP per capita
+Pre-breakpoint slope: $0.24 per $1000 GDP
+Post-breakpoint slope: $0.11 per $1000 GDP
 Statistical significance: No
 Plateau behavior: Yes
 ------------------------------
 
 GLOBAL MARKETS:
 Countries: brazil, china, france, germany, japan, mexico, russia, south korea, united kingdom, usa
-Observations: 296 (10 countries)
-Breakpoint: $46,808 GDP per capita
-Pre-breakpoint slope: $1.20 per $1000 GDP
-Post-breakpoint slope: $-2.28 per $1000 GDP
+Observations: 325 (10 countries)
+Breakpoint: $46,030 GDP per capita
+Pre-breakpoint slope: $0.97 per $1000 GDP
+Post-breakpoint slope: $-1.80 per $1000 GDP
 Statistical significance: No
 Plateau behavior: No
 ------------------------------

@@ -5,51 +5,8 @@ import seaborn as sns
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
-
-# Simple statistical functions without scipy dependency
-def t_distribution_2tail_p(t_stat, df):
-    """Approximate p-value for two-tailed t-test"""
-    abs_t = abs(t_stat)
-    if df > 30:
-        # Use normal approximation for large df
-        if abs_t > 2.576:
-            return 0.01
-        elif abs_t > 1.96:
-            return 0.05
-        elif abs_t > 1.645:
-            return 0.10
-        else:
-            return 0.20
-    else:
-        # Rough approximation for smaller df
-        if abs_t > 3:
-            return 0.01
-        elif abs_t > 2.5:
-            return 0.02
-        elif abs_t > 2:
-            return 0.05
-        else:
-            return 0.10
-
-def f_distribution_p(f_stat, df1, df2):
-    """Approximate p-value for F-test"""
-    if df2 > 30:
-        if f_stat > 6.63:
-            return 0.01
-        elif f_stat > 3.84:
-            return 0.05
-        elif f_stat > 2.71:
-            return 0.10
-        else:
-            return 0.20
-    else:
-        # Conservative approximation
-        if f_stat > 8:
-            return 0.01
-        elif f_stat > 4:
-            return 0.05
-        else:
-            return 0.10
+import scipy.stats
+import statsmodels.api as sm
 
 # Load master dataset
 def load_master_data():
@@ -83,31 +40,21 @@ def log_log_elasticity(x, y, country_name, series_name):
     # Simple OLS regression
     X = np.column_stack([np.ones(len(log_x)), log_x])
     try:
-        beta = np.linalg.lstsq(X, y_log_safe, rcond=None)[0]
-        residuals = y_log_safe - X @ beta
-        
-        # HC3 robust standard errors approximation
-        n = len(log_x)
-        mse = np.sum(residuals**2) / (n - 2)
-        se_beta = np.sqrt(mse * np.diag(np.linalg.inv(X.T @ X)))
-        
-        # t-test for elasticity
-        t_stat = beta[1] / se_beta[1]
-        p_value = t_distribution_2tail_p(t_stat, n - 2)
-        
-        # Calculate intercept confidence interval
-        intercept_se = se_beta[0]
-        intercept_ci = (beta[0] - 1.96*intercept_se, beta[0] + 1.96*intercept_se)
-        
+        model = sm.OLS(y_log_safe, sm.add_constant(log_x))
+        results = model.fit(cov_type='HC3')
+
         return {
-            'beta': beta[1],
-            'se': se_beta[1], 
-            'pvalue': p_value,
-            'n_obs': n,
-            'intercept': beta[0],
-            'intercept_se': intercept_se,
-            'intercept_ci': intercept_ci
+            'beta': results.params[1],
+            'se': results.bse[1], 
+            'pvalue': results.pvalues[1],
+            'n_obs': results.nobs,
+            'intercept': results.params[0],
+            'intercept_se': results.bse[0],
+            'intercept_ci': results.conf_int()[0]
         }
+    except Exception:
+        return {'beta': np.nan, 'se': np.nan, 'pvalue': np.nan, 'n_obs': mask.sum(),
+                'intercept': np.nan, 'intercept_se': np.nan, 'intercept_ci': (np.nan, np.nan)}
     except:
         return {'beta': np.nan, 'se': np.nan, 'pvalue': np.nan, 'n_obs': n,
                 'intercept': np.nan, 'intercept_se': np.nan, 'intercept_ci': (np.nan, np.nan)}
@@ -134,7 +81,8 @@ def piecewise_regression(x, y, country_name, series_name):
     
     best_sse = np.inf
     best_breakpoint = None
-    best_slopes = None
+    best_model1_params = None
+    best_model2_params = None
     
     # Grid search for optimal breakpoint
     for c in breakpoint_grid:
@@ -148,25 +96,24 @@ def piecewise_regression(x, y, country_name, series_name):
         
         try:
             # Fit segment 1: y = a1 + b1*x
-            X1 = np.column_stack([np.ones(mask1.sum()), x_clean[mask1]])
-            beta1 = np.linalg.lstsq(X1, y_clean[mask1], rcond=None)[0]
-            pred1 = X1 @ beta1
-            sse1 = np.sum((y_clean[mask1] - pred1)**2)
+            X1 = sm.add_constant(x_clean[mask1])
+            model1 = sm.OLS(y_clean[mask1], X1).fit()
+            sse1 = model1.ssr
             
             # Fit segment 2: y = a2 + b2*x  
-            X2 = np.column_stack([np.ones(mask2.sum()), x_clean[mask2]])
-            beta2 = np.linalg.lstsq(X2, y_clean[mask2], rcond=None)[0]
-            pred2 = X2 @ beta2
-            sse2 = np.sum((y_clean[mask2] - pred2)**2)
+            X2 = sm.add_constant(x_clean[mask2])
+            model2 = sm.OLS(y_clean[mask2], X2).fit()
+            sse2 = model2.ssr
             
             total_sse = sse1 + sse2
             
             if total_sse < best_sse:
                 best_sse = total_sse
                 best_breakpoint = c
-                best_slopes = {'b1': beta1[1], 'b2': beta2[1]}
+                best_model1_params = model1.params
+                best_model2_params = model2.params
                 
-        except:
+        except Exception:
             continue
     
     if best_breakpoint is None:
@@ -175,29 +122,31 @@ def piecewise_regression(x, y, country_name, series_name):
     # Calculate F-test for best breakpoint
     try:
         # Single line regression (null model)
-        X_single = np.column_stack([np.ones(n), x_clean])
-        beta_single = np.linalg.lstsq(X_single, y_clean, rcond=None)[0]
-        pred_single = X_single @ beta_single
-        sse_single = np.sum((y_clean - pred_single)**2)
+        X_single = sm.add_constant(x_clean)
+        model_single = sm.OLS(y_clean, X_single).fit()
+        sse_single = model_single.ssr
         
         # F-test: F = ((SSE_single - SSE_two)/1) / (SSE_two/(N-4))
         f_stat = ((sse_single - best_sse) / 1) / (best_sse / (n - 4))
-        p_value = f_distribution_p(f_stat, 1, n - 4)
+        p_value = scipy.stats.f.sf(f_stat, 1, n - 4)
         
         return {
             'country': country_name,
             'series': series_name,
             'breakpoint': best_breakpoint,
-            'b1': best_slopes['b1'],
-            'b2': best_slopes['b2'],
-            'delta_b': best_slopes['b2'] - best_slopes['b1'],
+            'b1': best_model1_params[1],
+            'b2': best_model2_params[1],
+            'intercept1': best_model1_params[0],
+            'intercept2': best_model2_params[0],
+            'delta_b': best_model2_params[1] - best_model1_params[1],
             'f_stat': f_stat,
             'p_value': p_value,
             'n_obs': n,
             'sse_single': sse_single,
             'sse_two': best_sse
         }
-    except:
+    except Exception as e:
+        print(f"Error in piecewise_regression for {country_name}-{series_name}: {e}")
         return None
 
 def bootstrap_confidence_interval(x, y, country_name, series_name, n_bootstrap=1000):
@@ -391,6 +340,8 @@ def create_small_multiples_chart(results_df, master_df):
                 breakpoint = pw_result.iloc[0]['breakpoint']
                 b1 = pw_result.iloc[0]['b1']
                 b2 = pw_result.iloc[0]['b2']
+                intercept1 = pw_result.iloc[0]['intercept1']
+                intercept2 = pw_result.iloc[0]['intercept2']
                 
                 # Plot piecewise lines
                 x_range = np.linspace(x_clean.min(), x_clean.max(), 100)
@@ -401,10 +352,7 @@ def create_small_multiples_chart(results_df, master_df):
                     # Need intercept for line plotting - estimate from data
                     mask1 = x_clean <= breakpoint
                     if mask1.sum() > 0:
-                        y1_mean = np.mean(y_clean[mask1])
-                        x1_mean = np.mean(x_clean[mask1])
-                        a1 = y1_mean - b1 * x1_mean
-                        y1_range = a1 + b1 * x1_range
+                        y1_range = intercept1 + b1 * x1_range
                         ax.plot(x1_range, y1_range, 'r-', linewidth=2, alpha=0.8)
                 
                 # Segment 2
@@ -412,10 +360,7 @@ def create_small_multiples_chart(results_df, master_df):
                 if len(x2_range) > 0:
                     mask2 = x_clean > breakpoint
                     if mask2.sum() > 0:
-                        y2_mean = np.mean(y_clean[mask2])
-                        x2_mean = np.mean(x_clean[mask2])
-                        a2 = y2_mean - b2 * x2_mean
-                        y2_range = a2 + b2 * x2_range
+                        y2_range = intercept2 + b2 * x2_range
                         ax.plot(x2_range, y2_range, 'b-', linewidth=2, alpha=0.8)
                 
                 # Vertical line at breakpoint

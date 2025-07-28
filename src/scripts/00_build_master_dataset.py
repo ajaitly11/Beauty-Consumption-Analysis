@@ -2,29 +2,9 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import logging
+import scipy.stats
 
-def pearsonr(x, y):
-    """Simple Pearson correlation coefficient calculation"""
-    x, y = np.array(x), np.array(y)
-    # Remove NaN pairs
-    mask = ~(np.isnan(x) | np.isnan(y))
-    x, y = x[mask], y[mask]
-    
-    if len(x) < 2:
-        return 0.0, 1.0
-    
-    # Calculate correlation
-    r = np.corrcoef(x, y)[0, 1]
-    
-    # Simple p-value approximation for large n
-    n = len(x)
-    if n > 10:
-        t_stat = r * np.sqrt((n-2)/(1-r**2)) if abs(r) < 0.999 else 0
-        p_value = 0.05 if abs(t_stat) > 2 else 0.1  # Rough approximation
-    else:
-        p_value = 0.1
-    
-    return r, p_value
+
 
 # Setup
 logging.basicConfig(level=logging.INFO)
@@ -148,9 +128,7 @@ def load_comtrade_data():
 
 def load_cpi_data():
     """Load and process CPI data from FRED"""
-    script_dir = Path(__file__).resolve().parent.parent.parent
-    cpi_path = script_dir / "data" / "raw" / "CPIAUCSL.csv"
-    cpi_df = pd.read_csv(cpi_path)
+    cpi_df = pd.read_csv("data/raw/CPIAUCSL.csv")
     cpi_df['date'] = pd.to_datetime(cpi_df['observation_date'])
     cpi_df['year'] = cpi_df['date'].dt.year
     
@@ -319,8 +297,8 @@ def select_best_proxy(trade_pivot, wb_data):
     
     for proxy in proxies:
         try:
-            r_gdp, p_gdp = pearsonr(merged[proxy], merged['gdppcppp'])
-            r_cons, p_cons = pearsonr(merged[proxy], merged['ne_con_prvt_pc_kd'])
+            r_gdp, p_gdp = scipy.stats.pearsonr(merged[proxy], merged['gdppcppp'])
+            r_cons, p_cons = scipy.stats.pearsonr(merged[proxy], merged['ne_con_prvt_pc_kd'])
             mean_corr = np.mean([abs(r_gdp), abs(r_cons)])
             
             correlations[proxy] = mean_corr
@@ -485,8 +463,7 @@ def create_master_dataset():
     # UAE already excluded from raw data
     
     # Save master dataset
-    script_dir = Path(__file__).resolve().parent.parent.parent
-    output_path = script_dir / "data" / "processed" / "beauty_income_panel.parquet"
+    output_path = "data/processed/beauty_income_panel.parquet"
     master.to_parquet(output_path, index=False)
     logger.info(f"Master dataset saved to {output_path}")
     logger.info(f"Dataset shape: {master.shape}")

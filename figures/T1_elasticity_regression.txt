@@ -2,9 +2,9 @@ Elasticity Regression Results
 ==============================
 Regression: ln(BeautyPC) = α + β*ln(GDPpcPPP) + ε
 
-Elasticity (β): 2.300
+Elasticity (β): 2.277
 Standard Error: 0.061
-95% CI: [2.180, 2.419]
-R-squared: 0.807
-P-value: -2.403e+00
-N observations: 296
+95% CI: [2.158, 2.396]
+R-squared: 0.808
+P-value: -2.174e+00
+N observations: 325

@@ -55,9 +55,6 @@ def log_log_elasticity(x, y, country_name, series_name):
     except Exception:
         return {'beta': np.nan, 'se': np.nan, 'pvalue': np.nan, 'n_obs': mask.sum(),
                 'intercept': np.nan, 'intercept_se': np.nan, 'intercept_ci': (np.nan, np.nan)}
-    except:
-        return {'beta': np.nan, 'se': np.nan, 'pvalue': np.nan, 'n_obs': n,
-                'intercept': np.nan, 'intercept_se': np.nan, 'intercept_ci': (np.nan, np.nan)}
 
 def piecewise_regression(x, y, country_name, series_name):
     """
@@ -91,7 +88,7 @@ def piecewise_regression(x, y, country_name, series_name):
         mask2 = x_clean > c
         
         # Need minimum observations in each segment
-        if mask1.sum() < 3 or mask2.sum() < 3:
+        if mask1.sum() < 10 or mask2.sum() < 10 or mask1.sum() < 0.2 * n or mask2.sum() < 0.2 * n:
             continue
         
         try:

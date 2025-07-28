@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import scipy.stats
 import statsmodels.api as sm
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
+
 
 plt.style.use('default')
 
@@ -593,149 +591,7 @@ def rolling_elasticity_india(df):
     plt.close()
     return rolling_df
 
-def kmeans_clustering(df):
-    """2.5 K-means clustering analysis"""
-    
-    # Prepare data for clustering
-    cluster_data = df[['BeautyPC', 'gdppcppp', 'BeautyShare']].copy()
-    cluster_data = cluster_data.dropna()
-    
-    if len(cluster_data) < 10:
-        return None, None
-    
-    # Standardize features (z-score)
-    scaler = StandardScaler()
-    features_scaled = scaler.fit_transform(cluster_data)
-    # Use 4 clusters as requested for better differentiation
-    optimal_k = 4
-    
-    # Still calculate silhouette score for validation
-    test_kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
-    test_labels = test_kmeans.fit_predict(features_scaled)
-    silhouette_avg = silhouette_score(features_scaled, test_labels)
-    
-    # Final clustering with optimal k
-    final_kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init='auto')
-    cluster_labels = final_kmeans.fit_predict(features_scaled)
-    
-    # Add cluster labels back to original data
-    df_clustered = df.loc[cluster_data.index].copy()
-    df_clustered['cluster'] = cluster_labels
-    
-    # Track India's cluster over time
-    india_clusters = df_clustered[df_clustered['country'] == 'india'].copy()
-    
-    # Debug: Check if any country changes clusters over time
-    cluster_changes = []
-    for country in df_clustered['country'].unique():
-        country_clusters = df_clustered[df_clustered['country'] == country]['cluster'].unique()
-        if len(country_clusters) > 1:
-            cluster_changes.append(f"{country}: {len(country_clusters)} different clusters")
-    
-    # Countries with cluster changes tracked but not logged
-    
-    # Create beautified T2-5: 2D scatter plot with 4 clusters
-    fig, ax = plt.subplots(figsize=(16, 12))
-    
-    # Enhanced cluster colors and names
-    cluster_colors = ['#3498db', '#e67e22', '#2ecc71', '#e74c3c']  # More vibrant colors
-    cluster_names = ['Developing Markets\\n(Low Income & Spending)', 
-                    'Emerging Markets\\n(Moderate Income & Beauty)', 
-                    'Developed Markets\\n(High Income & Consumption)', 
-                    'Premium Markets\\n(Luxury Consumption)']
-    
-    # Plot cluster points with enhanced styling
-    for cluster_id in range(optimal_k):
-        cluster_data_plot = df_clustered[df_clustered['cluster'] == cluster_id]
-        
-        if len(cluster_data_plot) == 0:
-            continue
-            
-        # Enhanced size scaling based on beauty share
-        sizes = (cluster_data_plot['BeautyShare'] * 150000).fillna(50)  # Better scaling
-        sizes = np.clip(sizes, 50, 300)  # Wider size range for better visibility
-        
-        ax.scatter(cluster_data_plot['gdppcppp'], cluster_data_plot['BeautyPC'],
-                  c=cluster_colors[cluster_id], s=sizes, alpha=0.7, 
-                  label=f'{cluster_names[cluster_id]}', 
-                  edgecolors='white', linewidth=1.5, zorder=3)
-    
-    # Enhanced India trajectory visualization
-    if not india_clusters.empty:
-        # Show India's development path with gradient effect
-        ax.plot(india_clusters['gdppcppp'], india_clusters['BeautyPC'],
-               'o-', color=COUNTRY_COLORS['india'], alpha=0.8, linewidth=4, 
-               markersize=10, markerfacecolor=COUNTRY_COLORS['india'],
-               markeredgecolor='white', markeredgewidth=2,
-               label='India\'s Development Path (1995-2024)', zorder=6)
-        
-        # Enhanced current India position marker
-        latest_india = india_clusters.iloc[-1]
-        ax.scatter(latest_india['gdppcppp'], latest_india['BeautyPC'],
-                  c=COUNTRY_COLORS['india'], s=600, marker='*', 
-                  edgecolor='darkred', linewidth=3,
-                  label='India Current Position (2024)', zorder=10)
-        
-        # Add annotation for India's current position
-        ax.annotate('India Today', 
-                   xy=(latest_india['gdppcppp'], latest_india['BeautyPC']),
-                   xytext=(15, 15), textcoords='offset points',
-                   fontsize=12, fontweight='bold',
-                   bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
-                            edgecolor=COUNTRY_COLORS['india'], alpha=0.9),
-                   arrowprops=dict(arrowstyle='->', color=COUNTRY_COLORS['india'], lw=2))
-    
-    # Enhanced styling and labels
-    ax.set_xlabel('GDP per Capita PPP (2021 International $)', 
-                 fontsize=14, fontweight='bold')
-    ax.set_ylabel('Beauty Consumption per Capita (USD 2015)', 
-                 fontsize=14, fontweight='bold')
-    ax.set_title('Global Beauty Consumption Clusters\\n' +
-                'India\'s Position in the Global Market', 
-                fontsize=16, fontweight='bold', pad=25)
-    
-    # Enhanced legend positioned inside the plot area
-    legend = ax.legend(loc='upper right', fontsize=10, framealpha=0.95, 
-                      edgecolor='gray', fancybox=True, shadow=True)
-    legend.get_frame().set_facecolor('white')
-    
-    # Enhanced grid and styling
-    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-    ax.set_axisbelow(True)
-    
-    # Style the axes
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(1.5)
-    ax.spines['bottom'].set_linewidth(1.5)
-    
-    # Format axis ticks
-    ax.tick_params(axis='both', which='major', labelsize=12)
-    
-    # Add subtle background
-    ax.set_facecolor('#fafafa')
-    
-    plt.tight_layout()
-    plt.savefig("figures/T2-5_kmeans_scatter.png", dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.close()
-    
-    # Create T2-6: India's cluster over time (only if it actually changes)
-    if not india_clusters.empty and len(india_clusters['cluster'].unique()) > 1:
-        plt.figure(figsize=(10, 6))
-        plt.step(india_clusters['year'], india_clusters['cluster'], 
-                where='post', linewidth=2, marker='o', markersize=6)
-        plt.xlabel('Year')
-        plt.ylabel('Cluster ID')
-        plt.title("India's Cluster Assignment Over Time")
-        plt.grid(True, alpha=0.3)
-        plt.ylim(-0.5, optimal_k - 0.5)
-        plt.tight_layout()
-        plt.savefig("figures/T2-6_india_cluster_timeline.png", dpi=300, bbox_inches='tight')
-        plt.close()
-    # India cluster timeline chart created or skipped based on cluster changes
-    
-    return df_clustered, india_clusters
+
 
 def test_india_growth_acceleration(df):
     """Test for India's growth acceleration using t-test"""
@@ -874,8 +730,8 @@ def main():
     # 2.4 Rolling elasticity for India
     rolling_df = rolling_elasticity_india(df)
     
-    # 2.5 K-means clustering
-    df_clustered, india_clusters = kmeans_clustering(df)
+    # 2.5 K-means clustering (removed as dead code)
+    df_clustered, india_clusters = None, None
     
     # Growth acceleration test for India
     growth_test = test_india_growth_acceleration(df)

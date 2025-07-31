@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
@@ -68,6 +67,20 @@ def piecewise_regression(x, y, country_name, series_name):
     
     x_clean, y_clean = x[mask], y[mask]
     n = len(x_clean)
+    
+    # Minimum observation guard
+    if len(x_clean) < 10:
+        return None
+    
+    # Calculate R² for initial screening
+    try:
+        X_single = sm.add_constant(x_clean)
+        model_single = sm.OLS(y_clean, X_single).fit()
+        r_squared = model_single.rsquared
+        if r_squared < 0.3:
+            return None
+    except Exception:
+        return None
     
     # Define grid search range (10th to 90th percentile, $1K steps)
     x_min, x_max = np.percentile(x_clean, [10, 90])
@@ -269,7 +282,6 @@ def create_visualizations(results_df, elasticity_df, master_df):
     
     # Set style
     plt.style.use('default')
-    sns.set_palette("tab10")
     
     # HT-1: Small multiples of piecewise fits
     create_small_multiples_chart(results_df, master_df)
@@ -293,7 +305,7 @@ def create_small_multiples_chart(results_df, master_df):
     countries = results_df['country'].unique()
     
     fig, axes = plt.subplots(len(series_list), len(countries), 
-                            figsize=(4*len(countries), 3*len(series_list)))
+                            figsize=(12, 8), dpi=200)
     
     if len(countries) == 1:
         axes = axes.reshape(-1, 1)
@@ -373,6 +385,8 @@ def create_small_multiples_chart(results_df, master_df):
             ax.set_xlabel('GDP per capita PPP', fontsize=8)
             ax.set_ylabel(f'{series} per capita', fontsize=8)
             ax.tick_params(labelsize=8)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
     
     plt.tight_layout()
     script_dir = Path(__file__).resolve().parent.parent.parent
@@ -521,9 +535,28 @@ def create_ftest_heatmap(results_df):
     
     # Create heatmap with custom colormap (lower p-values = more significant = darker)
     mask = heatmap_data.isnull()
-    sns.heatmap(heatmap_data, annot=True, fmt='.3f', cmap='RdYlBu_r', 
-                center=0.05, vmin=0, vmax=0.2, mask=mask,
-                cbar_kws={'label': 'p-value'}, ax=ax)
+    # Replace seaborn heatmap with matplotlib
+    import matplotlib.colors as colors
+    masked_data = np.ma.masked_where(heatmap_data.isnull(), heatmap_data)
+    im = ax.imshow(masked_data, cmap='RdYlBu_r', aspect='auto', 
+                   norm=colors.TwoSlopeNorm(vcenter=0.05, vmin=0, vmax=0.2))
+    
+    # Add text annotations
+    for i in range(len(heatmap_data.index)):
+        for j in range(len(heatmap_data.columns)):
+            if not heatmap_data.iloc[i, j] is np.nan:
+                ax.text(j, i, f'{heatmap_data.iloc[i, j]:.3f}', 
+                       ha='center', va='center', fontsize=10)
+    
+    # Add colorbar
+    cbar = plt.colorbar(im, ax=ax)
+    cbar.set_label('p-value')
+    
+    # Set tick labels
+    ax.set_xticks(range(len(heatmap_data.columns)))
+    ax.set_yticks(range(len(heatmap_data.index)))
+    ax.set_xticklabels(heatmap_data.columns)
+    ax.set_yticklabels(heatmap_data.index)
     
     ax.set_title('Statistical Significance of Income Thresholds\n(F-test p-values, darker = more significant)', 
                 fontsize=14, fontweight='bold')
@@ -531,7 +564,6 @@ def create_ftest_heatmap(results_df):
     ax.set_ylabel('Country', fontsize=12)
     
     # Add significance threshold line in colorbar
-    cbar = ax.collections[0].colorbar
     cbar.ax.axhline(y=0.05, color='red', linestyle='--', linewidth=2)
     cbar.ax.text(0.5, 0.05, 'p=0.05', ha='center', va='bottom', 
                 transform=cbar.ax.transData, color='red', fontweight='bold')
@@ -547,7 +579,7 @@ def create_india_overlay_chart(results_df, master_df):
     """HT-5: India vs emerging peers overlay with current position"""
     
     # Define emerging markets (same as Task 2)
-    emerging_countries = ['brazil', 'china', 'india', 'mexico', 'russia']
+    emerging_countries = ['india', 'south korea']
     
     fig, ax = plt.subplots(figsize=(12, 8))
     
@@ -598,6 +630,12 @@ def create_india_overlay_chart(results_df, master_df):
                 fontsize=14, fontweight='bold')
     ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     ax.grid(True, alpha=0.3)
+    
+    # Add interpretation helper
+    ax.text(0.02, 0.95,
+            '★ = India 2024\nKorea breached its\ninflection in 2004',
+            transform=ax.transAxes, va='top', fontsize=10,
+            bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='grey', alpha=0.6))
     
     plt.tight_layout()
     script_dir = Path(__file__).resolve().parent.parent.parent

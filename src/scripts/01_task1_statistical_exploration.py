@@ -44,7 +44,7 @@ def create_descriptive_plots(df):
                    alpha=0.8, label=country_label, color=color, s=60)
     
     # Add LOWESS smooth lines with robustness testing
-    for i, frac in enumerate([0.3, 0.4, 0.5]):
+    for i, frac in enumerate([0.4]):
         # Use statsmodels lowess
         smoothed = lowess(df['BeautyPC'], df['gdppcppp'], frac=frac)
         color = ['red', 'black', 'blue'][i]
@@ -53,7 +53,7 @@ def create_descriptive_plots(df):
     
     plt.xlabel('GDP per capita PPP (2021 Int$)')
     plt.ylabel('Beauty Consumption PC (USD 2015)')
-    plt.title('Beauty Consumption vs GDP per capita')
+    plt.title('Is beauty an S-curve good?')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.savefig(fig_dir / "T1-3_BeautyPC_vs_gdppcppp_scatter.png", dpi=300, bbox_inches='tight')
@@ -102,7 +102,7 @@ def create_descriptive_plots(df):
     
     plt.xlabel('GDP per capita PPP (2021 Int$)')
     plt.ylabel('Beauty Share of Household Consumption')
-    plt.title('Beauty Consumption as Share of Household Spending vs GDP per Capita')
+    plt.title('Beauty share of wallet flattens above ~2% of consumption')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()

@@ -485,7 +485,7 @@ def rolling_elasticity_india(df):
         window_data = india_data.iloc[i-window_size:i].copy()
         
         # Remove zero values for log regression
-        valid_data = window_data[(window_data['BeautyPC'] > 0) & 
+        valid_data = window_data[(window_data['BeautyPC'] >= 0.5) & 
                                 (window_data['gdppcppp'] > 0)]
         
         if len(valid_data) < 3:
@@ -501,7 +501,7 @@ def rolling_elasticity_india(df):
             
             # Relaxed guardrails for debugging - was too strict
             BeautyPC_var = valid_data['BeautyPC'].var()
-            if r_squared < 0.1 or BeautyPC_var < 0.001:
+            if r_squared < 0.3 or BeautyPC_var < 0.05:
                 continue
                 
             elasticity = reg.slope
@@ -530,6 +530,11 @@ def rolling_elasticity_india(df):
            markerfacecolor=COUNTRY_COLORS['india'], markeredgecolor='white', 
            markeredgewidth=2, alpha=0.9, label='5-Year Rolling Elasticity')
     
+    # Add smoothed line
+    rolling_df['elasticity_ma'] = rolling_df['elasticity'].rolling(3, center=True).mean()
+    ax.plot(rolling_df['end_year'], rolling_df['elasticity_ma'],
+            lw=2, ls='-', color='black', alpha=.6, label='3-yr MA')
+    
     # Enhanced trend line
     if len(rolling_df) > 2:
         z = np.polyfit(rolling_df['end_year'], rolling_df['elasticity'], 1)
@@ -551,9 +556,8 @@ def rolling_elasticity_india(df):
     # Enhanced styling and labels
     ax.set_xlabel('Window End Year', fontsize=13, fontweight='bold')
     ax.set_ylabel('Income Elasticity of Beauty Consumption (β)', fontsize=13, fontweight='bold')
-    ax.set_title('India: Evolution of Income Elasticity\\n' +
-                'Rolling 5-Year Analysis of Beauty Consumption Responsiveness', 
-                fontsize=15, fontweight='bold', pad=20)
+    ax.set_title('India: Income-Elasticity of Beauty Spend (5-yr windows)',
+                fontsize=13, fontweight='bold')
     
     # Enhanced legend
     legend = ax.legend(loc='upper right', fontsize=11, framealpha=0.95, 

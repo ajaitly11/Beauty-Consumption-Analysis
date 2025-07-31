@@ -270,7 +270,7 @@ def build_beauty_proxy(comtrade_df):
     outbound = trade_pivot.get('outbound', 0)
     re_export = trade_pivot['re_export']
     
-    trade_pivot['p1_net_inbound'] = inbound - re_export
+    trade_pivot['p1_net_inbound'] = (inbound - re_export).clip(lower=0)
     trade_pivot['p2_half_total'] = 0.5 * (inbound + outbound)
     trade_pivot['p3_balanced_net'] = inbound - re_export + 0.5 * outbound
     
@@ -392,6 +392,11 @@ def create_master_dataset():
     logger.info("Loading World Bank data...")
     wb_data = load_worldbank_data()
     
+    # Convert GDP per capita from 2021 USD to 2015 USD using actual CPI data
+    CPI_2015 = 237.017  # Annual average for 2015
+    CPI_2021 = 271.696  # Annual average for 2021
+    wb_data['gdppcppp'] = wb_data['gdppcppp'] / (CPI_2021 / CPI_2015)
+    
     logger.info("Handling missing data...")
     wb_data = handle_missing_data(wb_data)
     
@@ -442,7 +447,9 @@ def create_master_dataset():
     
     # Log variables (avoid log(0)) - use standardized column names
     master['ln_gdppc'] = np.log(master['gdppcppp'].fillna(1))
-    master['ln_BeautyPC'] = np.log(master['BeautyPC'].fillna(0) + 0.01)
+    # Drop rows where proxy is effectively zero
+    master = master[master['BeautyPC'] > 0]
+    master['ln_BeautyPC'] = np.log(master['BeautyPC'])
     
     # YoY growth - use standardized column names
     master = master.sort_values(['country', 'year'])

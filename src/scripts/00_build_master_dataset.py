@@ -395,7 +395,7 @@ def create_master_dataset():
     # Convert GDP per capita from 2021 USD to 2015 USD using actual CPI data
     CPI_2015 = 237.017  # Annual average for 2015
     CPI_2021 = 271.696  # Annual average for 2021
-    wb_data['gdppcppp'] = wb_data['gdppcppp'] / (CPI_2021 / CPI_2015)
+    wb_data['gdppcppp'] = wb_data['gdppcppp'] * (CPI_2015 / CPI_2021)
     
     logger.info("Handling missing data...")
     wb_data = handle_missing_data(wb_data)

@@ -15,6 +15,21 @@ T1_CHART_COLORS = {
     'overall': '#bcbd22'       # Olive
 }
 
+# Consistent country color palette matching Task 2
+COUNTRY_COLORS = {
+    'brazil': '#1f77b4',        # Blue (tab10 position 0)
+    'china': '#ff7f0e',         # Orange (tab10 position 1)
+    'france': '#2ca02c',        # Green (tab10 position 2)
+    'germany': '#d62728',       # Red (tab10 position 3)
+    'india': '#9467bd',         # Purple (tab10 position 4)
+    'japan': '#8c564b',         # Brown (tab10 position 5)
+    'mexico': '#e377c2',        # Pink (tab10 position 6)
+    'russia': '#7f7f7f',        # Gray (tab10 position 7)
+    'south korea': '#bcbd22',   # Olive (tab10 position 8)
+    'united kingdom': '#17becf', # Cyan (tab10 position 9)
+    'usa': '#00008B'            # DarkBlue (unique color for USA)
+}
+
 def load_master_data():
     """Load master dataset excluding India for Task 1"""
     master = pd.read_parquet("data/processed/beauty_income_panel.parquet")
@@ -33,44 +48,43 @@ def create_descriptive_plots(df):
     fig_dir.mkdir(exist_ok=True)
     
     # T1-3: Scatter BeautyPC vs GDPpcPPP with LOWESS
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(8, 5), dpi=200)
     
-    colors = plt.cm.tab10(np.linspace(0, 1, len(countries)))
-    
-    for country, color in zip(countries, colors):
+    for country in countries:
         country_data = df[df['country'] == country]
-        country_label = country.upper() if country == 'usa' else country.title()
+        country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+        country_color = COUNTRY_COLORS.get(country, '#666666')
         plt.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
-                   alpha=0.8, label=country_label, color=color, s=60)
+                   alpha=0.8, label=country_label, color=country_color, s=60)
     
     # Add LOWESS smooth lines with robustness testing
-    for i, frac in enumerate([0.4]):
+    for frac in [0.4]:
         # Use statsmodels lowess
         smoothed = lowess(df['BeautyPC'], df['gdppcppp'], frac=frac)
-        color = ['red', 'black', 'blue'][i]
-        plt.plot(smoothed[:, 0], smoothed[:, 1], '-', linewidth=2, alpha=0.7, 
-                color=color, label=f'LOWESS (frac={frac})')
+        plt.plot(smoothed[:, 0], smoothed[:, 1], '-', linewidth=3, alpha=1.0, 
+                color='black', label=f'LOWESS (frac={frac})')
     
-    plt.xlabel('GDP per capita PPP (2021 Int$)')
-    plt.ylabel('Beauty Consumption PC (USD 2015)')
-    plt.title('Is beauty an S-curve good?')
+    plt.xlabel('GDP Per Capita PPP (2021 Int$)', fontweight='bold')
+    plt.ylabel('Beauty Consumption Per Capita (USD 2015)', fontweight='bold')
+    plt.title('Is Beauty An S-Curve Good?', fontweight='bold')
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.savefig(fig_dir / "T1-3_BeautyPC_vs_gdppcppp_scatter.png", dpi=300, bbox_inches='tight')
     plt.close()
     
     # T1-4: Log-log scatter with OLS fit
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(8, 5), dpi=200)
     
     # Remove zero values for log transformation and fix log constant
     df_log = df[(df['BeautyPC'] > 0) & (df['gdppcppp'] > 0)].copy()
     df_log['ln_gdppc'] = np.log(df_log['gdppcppp'])
     
-    for country, color in zip(countries, colors):
+    for country in countries:
         country_data = df_log[df_log['country'] == country]
-        country_label = country.upper() if country == 'usa' else country.title()
+        country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+        country_color = COUNTRY_COLORS.get(country, '#666666')
         plt.scatter(country_data['ln_gdppc'], country_data['ln_BeautyPC'], 
-                   alpha=0.8, label=country_label, color=color, s=60)
+                   alpha=0.8, label=country_label, color=country_color, s=60)
     
     # Add OLS fit line
     X = df_log['ln_gdppc'].values.reshape(-1, 1)
@@ -83,26 +97,28 @@ def create_descriptive_plots(df):
     plt.plot(x_range, y_pred, 'k-', linewidth=3, 
              label=f'Income Elasticity = {reg.coef_[0]:.2f}')
     
-    plt.xlabel('Natural Log of GDP per capita PPP (ln of 2021 Int$)')
-    plt.ylabel('Natural Log of Beauty Consumption PC (ln of USD 2015)')
-    plt.title('Income Elasticity of Beauty Consumption: Log-Log Relationship')
-    plt.legend(loc='upper left')
+    plt.xlabel('Natural Log Of GDP Per Capita PPP (ln Of 2021 Int$)', fontweight='bold')
+    plt.ylabel('Natural Log Of Beauty Consumption\nPer Capita (ln Of USD 2015)', fontweight='bold')
+    plt.title('Income Elasticity Of Beauty Consumption: Log-Log Relationship', fontweight='bold')
+    plt.legend(loc='upper left', fontsize=9)
     plt.grid(True, alpha=0.3)
+    plt.tight_layout()  # Ensure proper spacing
     plt.savefig(fig_dir / "T1-4_log_scatter_ols.png", dpi=300, bbox_inches='tight')
     plt.close()
     
     # T1-5: BeautyShare vs GDPpcPPP
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(8, 5), dpi=200)
     
-    for country, color in zip(countries, colors):
+    for country in countries:
         country_data = df[df['country'] == country]
-        country_label = country.upper() if country == 'usa' else country.title()
+        country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+        country_color = COUNTRY_COLORS.get(country, '#666666')
         plt.scatter(country_data['gdppcppp'], country_data['BeautyShare'], 
-                   alpha=0.8, label=country_label, color=color, s=60)
+                   alpha=0.8, label=country_label, color=country_color, s=60)
     
-    plt.xlabel('GDP per capita PPP (2021 Int$)')
-    plt.ylabel('Beauty Share of Household Consumption')
-    plt.title('Beauty share of wallet flattens above ~2% of consumption')
+    plt.xlabel('GDP Per Capita PPP (2021 Int$)', fontweight='bold')
+    plt.ylabel('Beauty Share Of Household Consumption', fontweight='bold')
+    plt.title('Beauty Share Of Wallet Flattens Above ~2% Of Consumption', fontweight='bold')
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -302,17 +318,17 @@ def create_piecewise_plot(df, best_result):
     if best_result is None:
         return
         
-    plt.figure(figsize=(14, 10))
+    plt.figure(figsize=(8, 5), dpi=200)
     
     # Plot data points by country
     countries = sorted(df['country'].unique())
-    colors = plt.cm.tab10(np.linspace(0, 1, len(countries)))
     
-    for country, color in zip(countries, colors):
+    for country in countries:
         country_data = df[df['country'] == country]
-        country_label = country.upper() if country == 'usa' else country.title()
+        country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+        country_color = COUNTRY_COLORS.get(country, '#666666')
         plt.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
-                   alpha=0.8, label=country_label, color=color, s=60)
+                   alpha=0.8, label=country_label, color=country_color, s=60)
     
     # Plot piecewise regression lines
     x_range = np.linspace(df['gdppcppp'].min(), df['gdppcppp'].max(), 1000)
@@ -321,46 +337,24 @@ def create_piecewise_plot(df, best_result):
     # Segment 1 line (before breakpoint)
     x1_range = x_range[x_range <= breakpoint]
     y1_range = best_result['slope1'] * x1_range + best_result['intercept1']
-    slope1_text = f"${best_result['slope1']*1000:.1f} per $1000 GDP increase"
-    plt.plot(x1_range, y1_range, 'r-', linewidth=4, alpha=0.9, 
-             label=f'Pre-breakpoint: {slope1_text}')
+    plt.plot(x1_range, y1_range, 'k-', linewidth=4, alpha=0.9, 
+             label='Pre-breakpoint trend')
     
     # Segment 2 line (after breakpoint)
     x2_range = x_range[x_range > breakpoint]
     y2_range = best_result['slope2'] * x2_range + best_result['intercept2']
-    slope2_text = f"${best_result['slope2']*1000:.1f} per $1000 GDP increase"
-    plt.plot(x2_range, y2_range, 'b-', linewidth=4, alpha=0.9,
-             label=f'Post-breakpoint: {slope2_text}')
+    plt.plot(x2_range, y2_range, 'k-', linewidth=4, alpha=0.9,
+             label='Post-breakpoint trend')
     
-    # Mark breakpoint with explanation
-    y_break = best_result['slope1'] * breakpoint + best_result['intercept1']
-    plt.axvline(x=breakpoint, color='black', linestyle='--', alpha=0.8, linewidth=2)
-    plt.plot(breakpoint, y_break, 'ko', markersize=12, 
-             label=f'Inflection Point: ${breakpoint:,.0f} GDP per capita')
+    # Mark breakpoint
+    plt.axvline(x=breakpoint, color='black', linestyle='--', alpha=0.8, linewidth=2,
+                label=f'Breakpoint: ${breakpoint:,.0f}')
     
-    # Add text annotation explaining the breakpoint
-    plt.annotate(f'Consumption pattern changes\nat ${breakpoint:,.0f} GDP per capita', 
-                xy=(breakpoint, y_break), xytext=(breakpoint+8000, y_break+20),
-                arrowprops=dict(arrowstyle='->', color='black', alpha=0.7),
-                fontsize=11, ha='left',
-                bbox=dict(boxstyle="round,pad=0.3", facecolor='yellow', alpha=0.7))
-    
-    plt.xlabel('GDP per capita PPP (2021 Int$)')
-    plt.ylabel('Beauty Consumption PC (USD 2015)')
-    plt.title('Income Threshold Analysis: When Does Beauty Consumption Pattern Change?')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.xlabel('GDP Per Capita PPP (2021 Int$)', fontweight='bold')
+    plt.ylabel('Beauty Consumption Per Capita (USD 2015)', fontweight='bold')
+    plt.title('Income Threshold Analysis: Beauty Consumption Pattern Change', fontweight='bold')
+    plt.legend(loc='upper left', fontsize=9)
     plt.grid(True, alpha=0.3)
-    
-    # Add interpretation text
-    interpretation = f"""
-    Interpretation: The analysis identifies a structural break at ${breakpoint:,.0f} GDP per capita.
-    • Below threshold: Beauty spending increases by ${best_result['slope1']*1000:.1f} per $1000 GDP increase
-    • Above threshold: Beauty spending changes by ${best_result['slope2']*1000:.1f} per $1000 GDP increase
-    • This suggests {"a plateau in beauty consumption" if abs(best_result['slope2']) < 0.001 else "different consumption sensitivity"} after reaching middle-income levels
-    """
-    
-    plt.figtext(0.02, 0.02, interpretation, fontsize=10, 
-                bbox=dict(boxstyle="round,pad=0.5", facecolor='lightblue', alpha=0.8))
     
     plt.tight_layout()
     plt.savefig("figures/T1-6_piecewise_regression.png", dpi=300, bbox_inches='tight')
@@ -385,7 +379,7 @@ def create_t1_1_small_multiples(df, high_income, emerging):
     
     max_countries = max(len(high_income_available), len(emerging_available))
     
-    fig, axes = plt.subplots(2, max_countries, figsize=(4.5*max_countries, 10))
+    fig, axes = plt.subplots(2, max_countries, figsize=(4*max_countries, 9), dpi=200)
     
     # Ensure axes is always 2D
     if max_countries == 1:
@@ -407,19 +401,17 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         ax.plot(country_data['year'], country_data['BeautyPC'], 
                'o-', color=BEAUTY_COLOR, linewidth=2.5, markersize=3, 
                alpha=0.9, label='Beauty PC')
-        ax.set_ylabel('Beauty PC\n(USD 2015)', fontsize=10, color=BEAUTY_COLOR, fontweight='bold')
-        ax.tick_params(axis='y', labelcolor=BEAUTY_COLOR, labelsize=9)
+        ax.tick_params(axis='y', labelcolor=BEAUTY_COLOR, labelsize=8)
         
         # Plot GDP on right axis (scaled to thousands)
         ax2.plot(country_data['year'], country_data['gdppcppp']/1000, 
                 's--', color=GDP_COLOR, linewidth=2, markersize=2.5,
                 alpha=0.9, label='GDP PC')
-        ax2.set_ylabel('GDP PC\n(000s, 2021 Int$)', fontsize=10, color=GDP_COLOR, fontweight='bold')
-        ax2.tick_params(axis='y', labelcolor=GDP_COLOR, labelsize=9)
+        ax2.tick_params(axis='y', labelcolor=GDP_COLOR, labelsize=8)
         
         # Country title with better formatting
         country_title = country.upper() if country == 'usa' else country.replace('_', ' ').title()
-        ax.set_title(country_title, fontsize=13, fontweight='bold', pad=15)
+        ax.set_title(country_title, fontsize=12, fontweight='bold', pad=30)
         
         # Improved formatting
         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
@@ -430,9 +422,9 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         if i == 0:
             lines1, _ = ax.get_legend_handles_labels()
             lines2, _ = ax2.get_legend_handles_labels()
-            ax.legend(lines1 + lines2, ['Beauty Consumption', 'GDP per Capita'], 
-                     loc='upper left', fontsize=9, framealpha=0.9,
-                     fancybox=True, shadow=True)
+            ax.legend(lines1 + lines2, ['Beauty PC (USD 2015)', 'GDP PC (000s, 2015 USD)'], 
+                     loc='upper left', fontsize=11, framealpha=0.95,
+                     fancybox=True, shadow=True, bbox_to_anchor=(0.02, 0.98))
         
         # Remove top spines for cleaner look
         ax.spines['top'].set_visible(False)
@@ -454,19 +446,17 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         ax.plot(country_data['year'], country_data['BeautyPC'], 
                'o-', color=BEAUTY_COLOR, linewidth=2.5, markersize=3, 
                alpha=0.9, label='Beauty PC')
-        ax.set_ylabel('Beauty PC\n(USD 2015)', fontsize=10, color=BEAUTY_COLOR, fontweight='bold')
-        ax.tick_params(axis='y', labelcolor=BEAUTY_COLOR, labelsize=9)
+        ax.tick_params(axis='y', labelcolor=BEAUTY_COLOR, labelsize=8)
         
         # Plot GDP on right axis (scaled to thousands)
         ax2.plot(country_data['year'], country_data['gdppcppp']/1000, 
                 's--', color=GDP_COLOR, linewidth=2, markersize=2.5,
                 alpha=0.9, label='GDP PC')
-        ax2.set_ylabel('GDP PC\n(000s, 2021 Int$)', fontsize=10, color=GDP_COLOR, fontweight='bold')
-        ax2.tick_params(axis='y', labelcolor=GDP_COLOR, labelsize=9)
+        ax2.tick_params(axis='y', labelcolor=GDP_COLOR, labelsize=8)
         
         # Country title
         country_title = country.replace('_', ' ').title()
-        ax.set_title(country_title, fontsize=13, fontweight='bold', pad=15)
+        ax.set_title(country_title, fontsize=12, fontweight='bold', pad=25)
         
         # Improved formatting
         ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
@@ -483,20 +473,20 @@ def create_t1_1_small_multiples(df, high_income, emerging):
         axes[1, i].set_visible(False)
     
     # Add row labels with better styling
-    fig.text(0.01, 0.75, 'HIGH-INCOME\nCOUNTRIES', rotation=90, 
-             fontsize=16, fontweight='bold', va='center', ha='center',
+    fig.text(0.06, 0.68, 'HIGH-INCOME\nCOUNTRIES', rotation=90, 
+             fontsize=12, fontweight='bold', va='center', ha='center',
              bbox=dict(boxstyle="round,pad=0.3", facecolor='lightblue', alpha=0.8))
-    fig.text(0.01, 0.25, 'EMERGING\nMARKETS', rotation=90, 
-             fontsize=16, fontweight='bold', va='center', ha='center',
+    fig.text(0.06, 0.32, 'EMERGING\nMARKETS', rotation=90, 
+             fontsize=12, fontweight='bold', va='center', ha='center',
              bbox=dict(boxstyle="round,pad=0.3", facecolor='lightgreen', alpha=0.8))
     
-    # Add overall title
+    # Add overall title with more space from country titles
     fig.suptitle('Beauty Consumption and GDP Trends by Country Group (1995-2024)', 
-                 fontsize=18, fontweight='bold', y=0.96)
+                 fontsize=15, fontweight='bold', y=0.97)
     
-    # Adjust layout with proper spacing
+    # Adjust layout with proper spacing - more top space for title
     plt.tight_layout()
-    plt.subplots_adjust(top=0.88, left=0.10, right=0.95, hspace=0.4, wspace=0.3)
+    plt.subplots_adjust(top=0.85, left=0.10, right=0.95, hspace=0.4, wspace=0.3)
     
     plt.savefig("figures/T1-1_small_multiples_by_income_group.png", dpi=300, bbox_inches='tight')
     plt.close()
@@ -521,10 +511,10 @@ def create_t1_2_growth_comparison(df):
     avg_growth = avg_growth.dropna()
     avg_growth = avg_growth.sort_values('gdp_growth', ascending=True)
     
-    _, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(14, 6), dpi=200)
     
-    x_pos = np.arange(len(avg_growth))
-    width = 0.35
+    x_pos = np.arange(len(avg_growth)) * 1.5  # Increase spacing between country groups
+    width = 0.5
     
     country_labels = [c.upper() if c == 'usa' else c.replace('_', ' ').title() 
                      for c in avg_growth['country']]
@@ -533,34 +523,51 @@ def create_t1_2_growth_comparison(df):
     GDP_COLOR = '#4169E1'
     
     bars1 = ax.bar(x_pos - width/2, avg_growth['beauty_growth'], width, 
-                   label='Beauty Consumption Growth', alpha=0.8, color=BEAUTY_COLOR)
+                   label='Beauty Consumption Growth', alpha=0.85, color=BEAUTY_COLOR,
+                   edgecolor='white', linewidth=0.5)
     bars2 = ax.bar(x_pos + width/2, avg_growth['gdp_growth'], width, 
-                   label='GDP Growth', alpha=0.8, color=GDP_COLOR)
+                   label='GDP Growth', alpha=0.85, color=GDP_COLOR,
+                   edgecolor='white', linewidth=0.5)
     
     ax.set_title('Average Annual Growth Rates by Country (1995-2024)', 
-                 fontsize=16, fontweight='bold', pad=20)
-    ax.set_ylabel('Average Growth Rate (%/year)', fontsize=12)
-    ax.set_xlabel('Country', fontsize=12)
+                 fontsize=18, fontweight='bold', pad=25)
+    ax.set_ylabel('Average Growth Rate (%/year)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Country', fontsize=14, fontweight='bold')
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(country_labels, rotation=45, ha='right')
-    ax.legend(fontsize=11)
-    ax.grid(True, alpha=0.3, axis='y')
-    ax.axhline(y=0, color='black', linestyle='-', alpha=0.8)
+    ax.set_xticklabels(country_labels, rotation=0, ha='center', fontsize=12)
+    ax.tick_params(axis='y', labelsize=11)
+    ax.legend(fontsize=13, loc='upper left', framealpha=0.95, 
+              fancybox=True, shadow=True)
+    ax.grid(True, alpha=0.3, axis='y', linestyle='-', linewidth=0.5)
+    ax.axhline(y=0, color='black', linestyle='-', alpha=0.9, linewidth=1)
     
-    # Add value labels on bars
+    # Add value labels on bars with perfect centering
     for bar in bars1:
         height = bar.get_height()
         if not np.isnan(height):
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                   f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+            label_y = height + 0.2 if height >= 0 else height - 0.3
+            # Use bar center position for perfect alignment
+            bar_center = bar.get_x() + bar.get_width() / 2.0
+            ax.text(bar_center, label_y,
+                   f'{height:.1f}%', ha='center', va='bottom' if height >= 0 else 'top', 
+                   fontsize=10, fontweight='bold', color=BEAUTY_COLOR)
     
     for bar in bars2:
         height = bar.get_height()
         if not np.isnan(height):
-            ax.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                   f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+            label_y = height + 0.2 if height >= 0 else height - 0.3
+            # Use bar center position for perfect alignment
+            bar_center = bar.get_x() + bar.get_width() / 2.0
+            ax.text(bar_center, label_y,
+                   f'{height:.1f}%', ha='center', va='bottom' if height >= 0 else 'top', 
+                   fontsize=10, fontweight='bold', color=GDP_COLOR)
+    
+    # Improve layout and spacing
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.25)
     plt.savefig("figures/T1-2_average_growth_rates_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
 
@@ -716,78 +723,103 @@ def save_segmented_results(results):
 def create_segmented_comparison_plot(df, segmented_results):
     """Create T1-7: Segmented inflection point comparison plot"""
     
-    fig, axes = plt.subplots(1, 3, figsize=(20, 7))
+    # Remove the pooled chart since T1-6 already covers it
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), dpi=200)
     
-    # Define country groups and colors
+    # Define country groups
     oecd_countries = segmented_results.get('oecd', {}).get('countries', [])
     emerging_countries = segmented_results.get('emerging', {}).get('countries', [])
     
     segments = [
-        ('oecd', oecd_countries, 'Advanced Markets (OECD)', '#1f77b4'),
-        ('emerging', emerging_countries, 'Emerging Markets', '#ff7f0e'),
-        ('global', df['country'].unique(), 'All Countries (Pooled)', '#2ca02c')
+        ('oecd', oecd_countries, 'Advanced Markets (OECD)'),
+        ('emerging', emerging_countries, 'Emerging Markets')
     ]
     
-    for idx, (segment_key, countries, title, color) in enumerate(segments):
+    # Collect legend elements for shared legend
+    legend_elements = []
+    legend_labels = []
+    
+    for idx, (segment_key, countries, title) in enumerate(segments):
         ax = axes[idx]
         
         if segment_key in segmented_results and segmented_results[segment_key]['result'] is not None:
             # Get segment data and result
-            if segment_key == 'global':
-                segment_data = df.copy()
-            else:
-                segment_data = df[df['country'].isin(countries)].copy()
-            
+            segment_data = df[df['country'].isin(countries)].copy()
             result = segmented_results[segment_key]['result']
             
-            # Plot data points
+            # Plot data points with consistent colors
             for country in countries:
                 if country in df['country'].values:
                     country_data = segment_data[segment_data['country'] == country]
-                    country_label = country.upper() if country == 'usa' else country.title()
-                    ax.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
-                             alpha=0.6, s=40, label=country_label)
+                    country_label = country.upper() if country == 'usa' else country.replace('_', ' ').title()
+                    country_color = COUNTRY_COLORS.get(country, '#666666')
+                    
+                    scatter = ax.scatter(country_data['gdppcppp'], country_data['BeautyPC'], 
+                                       color=country_color, alpha=0.7, s=50, 
+                                       label=country_label, edgecolors='white', linewidth=0.5)
+                    
+                    # Add country colors to legend
+                    if idx == 0 and country in oecd_countries:
+                        legend_elements.append(scatter)
+                        legend_labels.append(country_label)
+                    elif idx == 1 and country in emerging_countries:
+                        legend_elements.append(scatter)
+                        legend_labels.append(country_label)
             
-            # Plot piecewise regression lines
+            # Plot piecewise regression lines with black color
             x_range = np.linspace(segment_data['gdppcppp'].min(), 
                                 segment_data['gdppcppp'].max(), 1000)
             breakpoint = result['breakpoint']
             
+            # Create segment-specific labels
+            segment_prefix = 'Adv' if segment_key == 'oecd' else 'Emg'
+            
             # Segment 1 line (before breakpoint)
             x1_range = x_range[x_range <= breakpoint]
             y1_range = result['slope1'] * x1_range + result['intercept1']
-            ax.plot(x1_range, y1_range, 'r-', linewidth=3, alpha=0.8,
-                   label=f'Pre: ${result["slope1"]*1000:.1f}/$1000 GDP')
+            line1 = ax.plot(x1_range, y1_range, 'k-', linewidth=3, alpha=0.8,
+                           label=f'{segment_prefix} Pre: {result["slope1"]*1000:.1f}/$1000 GDP')
             
             # Segment 2 line (after breakpoint)
             x2_range = x_range[x_range > breakpoint]
             y2_range = result['slope2'] * x2_range + result['intercept2']
-            ax.plot(x2_range, y2_range, 'b-', linewidth=3, alpha=0.8,
-                   label=f'Post: ${result["slope2"]*1000:.1f}/$1000 GDP')
+            line2 = ax.plot(x2_range, y2_range, 'k--', linewidth=3, alpha=0.8,
+                           label=f'{segment_prefix} Post: {result["slope2"]*1000:.1f}/$1000 GDP')
             
             # Mark breakpoint
-            y_break = result['slope1'] * breakpoint + result['intercept1']
-            ax.axvline(x=breakpoint, color='black', linestyle='--', alpha=0.7, linewidth=2)
-            ax.plot(breakpoint, y_break, 'ko', markersize=10,
-                   label=f'Breakpoint: ${breakpoint:,.0f}')
+            ax.axvline(x=breakpoint, color='black', linestyle=':', alpha=0.7, linewidth=2)
+            breakpoint_marker = ax.plot(breakpoint, result['slope1'] * breakpoint + result['intercept1'], 
+                                       'ko', markersize=8, label=f'{segment_prefix} Breakpoint: ${breakpoint:,.0f}')
             
-            # Add significance indicator
+            # Add regression lines to legend
+            legend_elements.extend([line1[0], line2[0], breakpoint_marker[0]])
+            legend_labels.extend([f'{segment_prefix} Pre: {result["slope1"]*1000:.1f}/$1000 GDP',
+                                f'{segment_prefix} Post: {result["slope2"]*1000:.1f}/$1000 GDP',
+                                f'{segment_prefix} Breakpoint: ${breakpoint:,.0f}'])
+            
+            # Add significance indicator with better positioning
             sig_text = "✓ Significant" if segmented_results[segment_key]['is_significant'] else "✗ Not Significant"
             plateau_text = "Plateau" if segmented_results[segment_key]['is_plateau'] else "Continued Growth"
             
-            ax.text(0.05, 0.95, f"{sig_text}\n{plateau_text}", 
-                   transform=ax.transAxes, verticalalignment='top',
-                   bbox=dict(boxstyle="round,pad=0.3", facecolor='lightgray', alpha=0.8))
+            ax.text(0.02, 0.98, f"{sig_text}\n{plateau_text}", 
+                   transform=ax.transAxes, verticalalignment='top', horizontalalignment='left',
+                   bbox=dict(boxstyle="round,pad=0.3", facecolor='lightgray', alpha=0.9),
+                   fontsize=9)
         
-        ax.set_xlabel('GDP per capita PPP (2021 Int$)')
-        ax.set_ylabel('Beauty Consumption PC (USD 2015)')
+        # Use camel case for axes labels
+        ax.set_xlabel('GDP Per Capita PPP (2021 Int$)', fontweight='bold')
+        ax.set_ylabel('Beauty Consumption Per Capita (USD 2015)', fontweight='bold')
         ax.set_title(title, fontweight='bold')
         ax.grid(True, alpha=0.3)
-        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
     
-    plt.suptitle('Inflection Point Analysis: Advanced vs Emerging Markets vs Global', 
-                 fontsize=16, fontweight='bold', y=1.02)
+    # Create single shared legend positioned between the two charts
+    fig.legend(legend_elements, legend_labels, 
+               loc='center', bbox_to_anchor=(0.5, -0.08), ncol=3, fontsize=8)
+    
+    plt.suptitle('Inflection Point Analysis: Advanced Vs Emerging Markets', 
+                 fontsize=14, fontweight='bold')
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.2, wspace=0.3)  # More space between charts and for legend
     plt.savefig("figures/T1-7_segmented_inflection_comparison.png", dpi=300, bbox_inches='tight')
     plt.close()
 

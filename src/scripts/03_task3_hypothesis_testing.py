@@ -312,16 +312,16 @@ def create_visualizations(results_df, elasticity_df, master_df):
     
     # Comment out other charts for faster testing
     # HT-2: Slope change bar chart  
-    # create_slope_change_chart(results_df)
+    create_slope_change_chart(results_df)
     
     # HT-3: Breakpoint histogram
-    # create_breakpoint_histogram(results_df)
+    create_breakpoint_histogram(results_df)
     
     # HT-4: F-test heatmap
-    # create_ftest_heatmap(results_df)
+    create_ftest_heatmap(results_df)
     
     # HT-5: India vs emerging peers overlay
-    # create_india_overlay_chart(results_df, master_df)
+    create_india_overlay_chart(results_df, master_df)
 
 def generate_clean_ticks(x_data, y_data, country_name):
     """Generate clean tick positions and labels for log-scale axes, optimized for individual plots"""
@@ -683,89 +683,148 @@ def create_series_comparison_chart(series, results_df, master_df, figures_dir, c
     return True
 
 def create_slope_change_chart(results_df):
-    """HT-2: Bar chart of slope changes (Δb) across countries"""
+    """HT-2: Improved horizontal bar chart of slope changes (Δb) with separate panels per category"""
     
     if results_df.empty:
         print("  Skipping HT-2: No piecewise results available")
         return
     
-    fig, ax = plt.subplots(figsize=(16, 6))
-    
     # Prepare data for plotting
     plot_data = results_df[['country', 'series', 'delta_b', 'p_value']].copy()
     plot_data['significant'] = plot_data['p_value'] < 0.05
+    plot_data['abs_delta_b'] = plot_data['delta_b'].abs()
     
-    # Create grouped bar chart
-    series_list = plot_data['series'].unique()
-    countries = plot_data['country'].unique()
+    # Get all series and create subplot layout
+    series_list = ['Beauty', 'Skincare', 'Mens Wear', 'Womens Wear']
+    available_series = [s for s in series_list if s in plot_data['series'].unique()]
     
-    x_pos = np.arange(len(countries))
-    bar_width = 0.8 / len(series_list)
+    # Create 2x2 subplot layout
+    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    axes = axes.flatten()
     
-    colors = plt.cm.tab10(np.linspace(0, 1, len(series_list)))
+    # Colors for categories (consistent with other charts)
+    series_colors = {
+        'Beauty': '#1f77b4',      # Blue
+        'Skincare': '#ff7f0e',    # Orange  
+        'Mens Wear': '#d62728',   # Red
+        'Womens Wear': '#e377c2'  # Pink
+    }
     
-    for i, series in enumerate(series_list):
-        series_data = plot_data[plot_data['series'] == series]
-
-        values = []
-        significance = []
-        for country in countries:
-            country_data = series_data[series_data['country'] == country]
-            if not country_data.empty:
-                values.append(country_data.iloc[0]['delta_b'])
-                significance.append(country_data.iloc[0]['significant'])
-            else:
-                values.append(0)
-                significance.append(False)
-
-        # Plot bars with different alpha for significance
-        bars = ax.bar(x_pos + i * bar_width, values, bar_width, 
-                     label=series, color=colors[i], alpha=0.8)
-
-        # Add significance markers (asterisks) just above or below the bar, inside the chart area
-        ylim = ax.get_ylim()
-        y_range = ylim[1] - ylim[0]
-        offset = 0.01 * y_range  # 1% of y-range as offset
-        for j, (bar, sig) in enumerate(zip(bars, significance)):
-            if sig and values[j] != 0:
-                height = bar.get_height()
-                # Place asterisk just inside the chart area
-                if height > 0:
-                    y = min(height + offset, ylim[1] - 0.02 * y_range)
-                    va = 'bottom'
+    for idx, series in enumerate(available_series):
+        if idx >= 4:  # Safety check
+            break
+            
+        ax = axes[idx]
+        series_data = plot_data[plot_data['series'] == series].copy()
+        
+        if series_data.empty:
+            ax.text(0.5, 0.5, f'No data for {series}', ha='center', va='center', 
+                   transform=ax.transAxes, fontsize=12)
+            ax.set_title(f'{series}', fontsize=14, fontweight='bold')
+            continue
+        
+        # Sort countries by magnitude of delta_b (absolute value) - largest changes first
+        series_data = series_data.sort_values('abs_delta_b', ascending=True)  # ascending=True for horizontal bars
+        
+        countries = series_data['country'].values
+        delta_b_values = series_data['delta_b'].values
+        significance = series_data['significant'].values
+        p_values = series_data['p_value'].values
+        
+        # Create horizontal bar chart
+        y_positions = np.arange(len(countries))
+        color = series_colors.get(series, '#666666')
+        
+        # Create bars with different alpha for significance
+        bars = ax.barh(y_positions, delta_b_values, 
+                      color=color, alpha=0.8, height=0.6)
+        
+        # Add significance markers (asterisks)
+        for i, (bar, sig, p_val) in enumerate(zip(bars, significance, p_values)):
+            if sig:
+                width = bar.get_width()
+                # Position asterisk just outside the bar
+                if width >= 0:
+                    x_pos = width + 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+                    ha = 'left'
                 else:
-                    y = max(height - offset, ylim[0] + 0.02 * y_range)
-                    va = 'top'
-                ax.text(bar.get_x() + bar.get_width()/2., y, '*', ha='center', va=va, fontweight='bold', fontsize=14, clip_on=True)
+                    x_pos = width - 0.02 * (ax.get_xlim()[1] - ax.get_xlim()[0])
+                    ha = 'right'
+                
+                ax.text(x_pos, bar.get_y() + bar.get_height()/2, '*', 
+                       ha=ha, va='center', fontweight='bold', fontsize=16, color='red')
+        
+        # Formatting
+        ax.set_yticks(y_positions)
+        ax.set_yticklabels([c.replace('_', ' ').title() for c in countries], fontsize=11)
+        ax.set_xlabel('Slope Change (Δb)', fontsize=12, fontweight='bold')
+        ax.set_title(f'{series}', fontsize=14, fontweight='bold', pad=10)
+        ax.grid(True, alpha=0.3, axis='x')
+        ax.axvline(x=0, color='black', linestyle='-', alpha=0.5, linewidth=1)
+        
+        # Adjust x-axis limits to accommodate asterisks
+        xlim = ax.get_xlim()
+        x_range = xlim[1] - xlim[0]
+        ax.set_xlim(xlim[0] - 0.05 * x_range, xlim[1] + 0.05 * x_range)
+        
+        # Add value labels on bars
+        for i, (bar, val) in enumerate(zip(bars, delta_b_values)):
+            if abs(val) > 0.001:  # Only show labels for non-zero values
+                x_label = bar.get_width() / 2
+                ax.text(x_label, bar.get_y() + bar.get_height()/2, f'{val:.3f}', 
+                       ha='center', va='center', fontweight='bold', fontsize=9, color='white')
     
-    ax.set_xlabel('Country', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Slope Change (Δb)', fontsize=12, fontweight='bold')
-    ax.set_title('Slope Change at Income Threshold by Country and Category\n(* indicates p < 0.05)', 
-                fontsize=14, fontweight='bold')
-    ax.set_xticks(x_pos + bar_width * (len(series_list) - 1) / 2)
-    ax.set_xticklabels([c.replace('_', ' ').title() for c in countries], rotation=0, ha='center')
-    ax.legend(loc='upper left', bbox_to_anchor=(0.02, 0.98))
-    ax.grid(True, alpha=0.3, axis='y')
-    ax.axhline(y=0, color='black', linestyle='-', alpha=0.5)
+    # Hide unused subplots
+    for idx in range(len(available_series), 4):
+        axes[idx].set_visible(False)
     
-    plt.tight_layout()
+    # Overall title and layout
+    plt.suptitle('Slope Change at Income Threshold by Country and Category\n(* indicates p < 0.05, sorted by magnitude)', 
+                fontsize=16, fontweight='bold', y=0.95)
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.92])  # Leave space for suptitle
+    
+    # Save the chart
     script_dir = Path(__file__).resolve().parent.parent.parent
     figures_dir = script_dir / "figures"
     plt.savefig(figures_dir / 'HT-2_slope_change_bar_chart.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("  Created HT-2: Slope change bar chart")
+    print("  Created HT-2: Improved slope change bar chart with separate panels")
 
 def create_breakpoint_histogram(results_df):
-    """HT-3: Histogram of breakpoints by category"""
+    """HT-3: Improved histogram of breakpoints by category with consistent formatting"""
     
     if results_df.empty:
         print("  Skipping HT-3: No piecewise results available")
         return
     
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     axes = axes.flatten()
     
-    series_list = results_df['series'].unique()
+    # Define consistent bin edges (10k USD width) and axis ranges for all panels
+    bin_edges = np.arange(0, 60000, 10000)  # 0, 10k, 20k, ..., 50k
+    x_min, x_max = 0, 55000
+    
+    # Calculate overall max frequency for consistent y-axis scaling
+    all_breakpoints = results_df['breakpoint'].dropna()
+    if len(all_breakpoints) > 0:
+        # Calculate max frequency across all series to set consistent y-axis
+        max_freq = 0
+        series_list = ['Beauty', 'Skincare', 'Mens Wear', 'Womens Wear']
+        for series in series_list:
+            series_data = results_df[results_df['series'] == series]
+            if not series_data.empty:
+                breakpoints = series_data['breakpoint'].dropna()
+                if len(breakpoints) > 0:
+                    hist_counts, _ = np.histogram(breakpoints, bins=bin_edges)
+                    max_freq = max(max_freq, hist_counts.max())
+        
+        # Set y-axis to show integers only, with some headroom
+        y_max = max(3, int(max_freq) + 1)
+    else:
+        y_max = 3
+    
+    series_list = ['Beauty', 'Skincare', 'Mens Wear', 'Womens Wear']
     
     for i, series in enumerate(series_list):
         if i >= 4:
@@ -778,89 +837,202 @@ def create_breakpoint_histogram(results_df):
             breakpoints = series_data['breakpoint'].dropna()
             
             if len(breakpoints) > 0:
-                ax.hist(breakpoints, bins=15, alpha=0.7, edgecolor='black')
-                ax.axvline(breakpoints.median(), color='red', linestyle='--', 
-                          label=f'Median: ${breakpoints.median():,.0f}')
-                ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=10, fontweight='bold')
-                ax.set_ylabel('Frequency', fontsize=10, fontweight='bold')
-                ax.set_title(f'{series} Breakpoints\n({len(breakpoints)} countries)', fontsize=12, fontweight='bold')
-                ax.legend()
+                # Get country names for each breakpoint
+                breakpoint_countries = series_data[['country', 'breakpoint']].dropna()
+                
+                # Create bins and get country assignments
+                hist_counts, bin_edges_used = np.histogram(breakpoints, bins=bin_edges)
+                
+                # Create bars with spacing (rwidth parameter adds gaps)
+                n, bins, patches = ax.hist(breakpoints, bins=bin_edges, alpha=0.7, 
+                                         edgecolor='black', color='steelblue', rwidth=0.8)
+                
+                # Add country names to bars
+                for i, (count, left_edge, right_edge) in enumerate(zip(hist_counts, bin_edges_used[:-1], bin_edges_used[1:])):
+                    if count > 0:
+                        # Find countries in this bin
+                        countries_in_bin = breakpoint_countries[
+                            (breakpoint_countries['breakpoint'] >= left_edge) & 
+                            (breakpoint_countries['breakpoint'] < right_edge)
+                        ]['country'].tolist()
+                        
+                        # Format country names (capitalize and remove underscores)
+                        formatted_countries = [c.replace('_', ' ').title() for c in countries_in_bin]
+                        
+                        # Position text in center of bar
+                        bin_center = (left_edge + right_edge) / 2
+                        
+                        # Add country names vertically stacked in the bar
+                        if len(formatted_countries) == 1:
+                            # Single country - center it
+                            ax.text(bin_center, count/2, formatted_countries[0], 
+                                   ha='center', va='center', fontsize=9, fontweight='bold',
+                                   color='black', rotation=0)
+                        elif len(formatted_countries) == 2:
+                            # Two countries - stack them
+                            ax.text(bin_center, count * 0.75, formatted_countries[0], 
+                                   ha='center', va='center', fontsize=8, fontweight='bold',
+                                   color='black', rotation=0)
+                            ax.text(bin_center, count * 0.25, formatted_countries[1], 
+                                   ha='center', va='center', fontsize=8, fontweight='bold',
+                                   color='black', rotation=0)
+                        else:
+                            # More than 2 countries - use smaller font and stack
+                            for j, country in enumerate(formatted_countries):
+                                y_pos = count * (len(formatted_countries) - j) / (len(formatted_countries) + 1)
+                                ax.text(bin_center, y_pos, country, 
+                                       ha='center', va='center', fontsize=7, fontweight='bold',
+                                       color='black', rotation=0)
+                
+                # Add median line
+                median_val = breakpoints.median()
+                ax.axvline(median_val, color='red', linestyle='--', linewidth=2)
+                
+                # Add median label inside panel, positioned near the line
+                ax.text(median_val + 1500, y_max * 0.85, f'Median: ${median_val:,.0f}', 
+                       fontsize=10, fontweight='bold', color='red',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+                
+                ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=11, fontweight='bold')
+                ax.set_ylabel('Number of Countries', fontsize=11, fontweight='bold')
+                ax.set_title(f'{series} Breakpoints\n({len(breakpoints)} countries)', 
+                           fontsize=12, fontweight='bold')
                 ax.grid(True, alpha=0.3)
+                
+                # Set consistent axes ranges and integer ticks
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(0, y_max)
+                ax.set_yticks(range(0, y_max + 1))  # Integer y-axis ticks only
+                
+                # Format x-axis with clean ticks
+                ax.set_xticks(np.arange(0, 60000, 10000))
+                ax.set_xticklabels(['0', '10K', '20K', '30K', '40K', '50K'])
+                
             else:
                 ax.text(0.5, 0.5, 'No significant\nbreakpoints found', 
-                       ha='center', va='center', transform=ax.transAxes)
+                       ha='center', va='center', transform=ax.transAxes, fontsize=12)
                 ax.set_title(f'{series} Breakpoints', fontsize=12, fontweight='bold')
+                ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=11, fontweight='bold')
+                ax.set_ylabel('Number of Countries', fontsize=11, fontweight='bold')
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(0, y_max)
+                ax.set_yticks(range(0, y_max + 1))
+                ax.set_xticks(np.arange(0, 60000, 10000))
+                ax.set_xticklabels(['0', '10K', '20K', '30K', '40K', '50K'])
+                ax.grid(True, alpha=0.3)
         else:
             ax.text(0.5, 0.5, 'No data available', 
-                   ha='center', va='center', transform=ax.transAxes)
+                   ha='center', va='center', transform=ax.transAxes, fontsize=12)
             ax.set_title(f'{series} Breakpoints', fontsize=12, fontweight='bold')
+            ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=11, fontweight='bold')
+            ax.set_ylabel('Number of Countries', fontsize=11, fontweight='bold')
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(0, y_max)
+            ax.set_yticks(range(0, y_max + 1))
+            ax.set_xticks(np.arange(0, 60000, 10000))
+            ax.set_xticklabels(['0', '10K', '20K', '30K', '40K', '50K'])
+            ax.grid(True, alpha=0.3)
     
-    # Hide unused subplots
+    # Hide unused subplots (shouldn't be needed with 4 series, but keep for safety)
     for i in range(len(series_list), 4):
         axes[i].set_visible(False)
     
     plt.suptitle('Distribution of Income Thresholds by Category\n(Breakpoints where consumption accelerates)', 
-                fontsize=14, fontweight='bold')
-    plt.tight_layout()
+                fontsize=15, fontweight='bold', y=0.95)
+    plt.tight_layout(rect=[0, 0, 1, 0.92])  # Leave space for suptitle
+    
     script_dir = Path(__file__).resolve().parent.parent.parent
     figures_dir = script_dir / "figures"
     plt.savefig(figures_dir / 'HT-3_breakpoint_histogram.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("  Created HT-3: Breakpoint histogram")
+    print("  Created HT-3: Improved breakpoint histogram with consistent formatting")
 
 def create_ftest_heatmap(results_df):
-    """HT-4: Heatmap of F-test p-values"""
+    """HT-4: Dot plot of F-test p-values with diverging color palette"""
     
     if results_df.empty:
         print("  Skipping HT-4: No piecewise results available")
         return
     
-    # Create pivot table for heatmap
+    # Create pivot table for data organization
     heatmap_data = results_df.pivot(index='country', columns='series', values='p_value')
     
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Create heatmap with custom colormap (lower p-values = more significant = darker)
-    mask = heatmap_data.isnull()
-    # Replace seaborn heatmap with matplotlib
+    # Set up diverging colormap centered at 0.05
     import matplotlib.colors as colors
-    masked_data = np.ma.masked_where(heatmap_data.isnull(), heatmap_data)
-    im = ax.imshow(masked_data, cmap='RdYlBu_r', aspect='auto', 
-                   norm=colors.TwoSlopeNorm(vcenter=0.05, vmin=0, vmax=0.2))
+    cmap = plt.cm.RdBu
+    norm = colors.TwoSlopeNorm(vcenter=0.05, vmin=0, vmax=0.4)
     
-    # Add text annotations
-    for i in range(len(heatmap_data.index)):
-        for j in range(len(heatmap_data.columns)):
-            if not heatmap_data.iloc[i, j] is np.nan:
-                ax.text(j, i, f'{heatmap_data.iloc[i, j]:.3f}', 
-                       ha='center', va='center', fontsize=10)
+    # Create dot plot
+    x_positions = np.arange(len(heatmap_data.columns))
+    y_positions = np.arange(len(heatmap_data.index))
     
-    # Add colorbar
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label('p-value')
+    # Plot dots for each data point
+    for i, country in enumerate(heatmap_data.index):
+        for j, category in enumerate(heatmap_data.columns):
+            p_val = heatmap_data.loc[country, category]
+            
+            if not pd.isna(p_val):
+                # Size rectangles inversely proportional to p-value (smaller p = larger rectangle)
+                # Base width and height, with scaling for significance
+                base_width = 0.35
+                base_height = 0.25
+                scale_factor = 1 + (1 - min(p_val, 0.4) / 0.4) * 0.5  # 1.0 to 1.5x scaling
+                rect_width = base_width * scale_factor
+                rect_height = base_height * scale_factor
+                
+                # Color based on p-value using diverging palette
+                color = cmap(norm(p_val))
+                
+                # Create rectangle centered at (j, i)
+                from matplotlib.patches import Rectangle
+                rect = Rectangle((j - rect_width/2, i - rect_height/2), 
+                               rect_width, rect_height,
+                               facecolor=color, edgecolor='white', 
+                               linewidth=2, alpha=0.8)
+                ax.add_patch(rect)
+                
+                # Add text annotation with larger font
+                ax.text(j, i, f'{p_val:.3f}', ha='center', va='center', 
+                       fontsize=12, fontweight='bold',
+                       color='white' if p_val < 0.15 else 'black')
     
-    # Set tick labels
-    ax.set_xticks(range(len(heatmap_data.columns)))
-    ax.set_yticks(range(len(heatmap_data.index)))
-    ax.set_xticklabels(heatmap_data.columns)
-    ax.set_yticklabels(heatmap_data.index)
+    # Customize the plot
+    ax.set_xticks(x_positions)
+    ax.set_yticks(y_positions)
+    ax.set_xticklabels(heatmap_data.columns, fontsize=11)
+    ax.set_yticklabels(heatmap_data.index, fontsize=11)
     
-    ax.set_title('Statistical Significance of Income Thresholds\n(F-test p-values, darker = more significant)', 
-                fontsize=14, fontweight='bold')
+    # Add grid for better readability
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Set limits with padding
+    ax.set_xlim(-0.5, len(heatmap_data.columns) - 0.5)
+    ax.set_ylim(-0.5, len(heatmap_data.index) - 0.5)
+    
+    # Labels and title
+    ax.set_title('Statistical Significance of Income Thresholds\n(F-test p-values, red = significant, blue = not significant, white = missing data)', 
+                fontsize=14, fontweight='bold', pad=20)
     ax.set_xlabel('Category', fontsize=12, fontweight='bold')
     ax.set_ylabel('Country', fontsize=12, fontweight='bold')
     
-    # Add significance threshold line in colorbar
-    cbar.ax.axhline(y=0.05, color='red', linestyle='--', linewidth=2)
-    cbar.ax.text(0.5, 0.05, 'p=0.05', ha='center', va='bottom', 
-                transform=cbar.ax.transData, color='red', fontweight='bold')
+    # Add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, shrink=0.8)
+    cbar.set_label('p-value', fontsize=11, fontweight='bold')
+    
+    # Add significance threshold line to colorbar
+    cbar.ax.axhline(y=0.05, color='black', linestyle='--', linewidth=2)
     
     plt.tight_layout()
     script_dir = Path(__file__).resolve().parent.parent.parent
     figures_dir = script_dir / "figures"
     plt.savefig(figures_dir / 'HT-4_ftest_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
-    print("  Created HT-4: F-test significance heatmap")
+    print("  Created HT-4: F-test significance dot plot")
 
 def create_india_overlay_chart(results_df, master_df):
     """HT-5: India vs emerging peers overlay with current position"""
@@ -886,6 +1058,10 @@ def create_india_overlay_chart(results_df, master_df):
             continue
             
         x_clean, y_clean = x[mask], y[mask]
+        
+        # Sort by x-axis values to avoid kinks in the line plot
+        sort_idx = np.argsort(x_clean)
+        x_clean, y_clean = x_clean.iloc[sort_idx], y_clean.iloc[sort_idx]
         
         # Plot country trajectory with consistent colors
         country_color = COUNTRY_COLORS.get(country, '#666666')
@@ -917,7 +1093,7 @@ def create_india_overlay_chart(results_df, master_df):
     ax.set_ylabel('Beauty Consumption Per Capita (2015 USD)', fontsize=12, fontweight='bold')
     ax.set_title('India vs Emerging Market Peers: Beauty Consumption Trajectory\nIndia\'s Position Relative to Income Thresholds', 
                 fontsize=14, fontweight='bold')
-    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax.legend(loc='lower right')
     ax.grid(True, alpha=0.3)
     
     # Add interpretation helper

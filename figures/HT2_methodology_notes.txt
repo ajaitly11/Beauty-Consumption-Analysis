@@ -1,0 +1,73 @@
+HT-2 SLOPE CHANGE ANALYSIS: METHODOLOGY NOTES
+==============================================
+
+COUNTRY COVERAGE BY CATEGORY
+-----------------------------
+- Beauty: 11 countries (complete coverage)
+- Skincare: 11 countries (complete coverage)  
+- Mens Wear: 7 countries (4 missing)
+- Womens Wear: 7 countries (4 missing)
+
+MISSING COUNTRIES AND REASONS
+------------------------------
+
+The piecewise regression analysis requires a minimum R² threshold of 0.3 between 
+log(GDP per capita) and log(consumption per capita) to ensure reliable breakpoint 
+detection. Countries failing this threshold are excluded from the analysis.
+
+MENS WEAR - Missing Countries:
+- France: R² = 0.142 (insufficient GDP-consumption relationship)
+- Japan: R² = 0.107 (weak income elasticity for mens wear)
+- Mexico: R² = 0.042 (consumption not strongly driven by income)
+- USA: R² = 0.005 (very weak relationship, likely driven by other factors)
+
+WOMENS WEAR - Missing Countries:
+- Germany: R² < 0.3 (estimated based on exclusion pattern)
+- Japan: R² = 0.201 (weak income-consumption relationship)
+- Mexico: R² = 0.007 (consumption patterns not income-driven)
+- USA: R² = 0.003 (minimal correlation with GDP per capita)
+
+INTERPRETATION
+--------------
+
+The missing countries represent cases where mens/womens wear consumption is NOT 
+strongly correlated with GDP per capita, suggesting:
+
+1. **Market Maturity**: In developed countries (USA, Japan, France, Germany), 
+   clothing consumption may be driven more by fashion cycles, replacement needs, 
+   or cultural factors rather than income growth.
+
+2. **Different Economic Drivers**: These countries may have clothing markets 
+   influenced by factors other than GDP growth (trade policies, domestic 
+   production, cultural preferences).
+
+3. **Methodology Limitation**: The log-log relationship assumes income elasticity 
+   drives consumption, which may not hold for all product categories in all markets.
+
+STATISTICAL VALIDITY
+--------------------
+
+The R² = 0.3 threshold ensures that:
+- Detected breakpoints are statistically meaningful
+- Income thresholds represent genuine consumption pattern changes
+- Results are not driven by random variation or noise
+
+Countries with R² < 0.3 would produce unreliable or spurious breakpoint estimates.
+
+RECOMMENDATIONS FOR INTERPRETATION
+----------------------------------
+
+1. The 7-country analysis for Mens/Womens Wear represents markets where income 
+   effects are strong enough to detect meaningful consumption thresholds.
+
+2. Missing countries should not be interpreted as "no threshold exists" but rather 
+   as "threshold detection not possible with income-based methods."
+
+3. Alternative analytical approaches (cultural, demographic, or policy-based) 
+   might be more appropriate for the excluded countries.
+
+4. Results are most applicable to emerging and middle-income markets where income 
+   growth is a primary driver of consumption patterns.
+
+Generated: Task 3 Hypothesis Testing Analysis
+Date: 2025-08-02

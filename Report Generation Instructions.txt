@@ -1,0 +1,90 @@
+Read the case prompt below and the description of data used by me that follows, then look at the analysis that I have done for the tasks mentioned. The graphs for the analysis are stored in the figures directory. 
+
+Case prompt - 
+
+Beauty Consumption vs. Disposable Income 
+
+Background: 
+
+As part of an early-stage investment thesis, we’re evaluating the relationship between rising disposable income and consumer behaviour shifts in the beauty sector, with a focus on emerging trends like the rise of Korean Beauty and category breakouts in personal care. 
+
+We want to understand whether beauty consumption scales predictably with income growth, and if so, whether India is at an inflection point that signals a potential consumption boom. 
+
+Case Prompt: 
+
+Using a dataset of your choice, analyse whether increasing disposable income or GDP per capita shows a strong correlation with beauty product consumption across countries like Japan, South Korea, China, and the US. Is there a trend, inflection point, or saturation level? How does India compare, and what does that imply for potential growth? 
+ 
+
+Tasks (including but not limited to): 
+
+1. Statistical Exploration: 
+
+Use datasets to identify patterns between GDP per capita / disposable income and per capita beauty spending. 
+
+Use relevant statistical tools to identify: 
+
+Trend strength and shape 
+
+Any inflection points or plateaus in beauty consumption 
+
+2. Comparative Benchmarking: 
+
+Analyze countries like South Korea, China, Japan, and the US. 
+
+Plot India’s current metrics alongside their historical data at similar income levels. 
+
+Determine whether India shows signs of entering a consumption breakout phase. 
+
+3. Hypothesis Testing: 
+
+Test the hypothesis:  
+“Beauty consumption accelerates disproportionately once GDP per capita crosses a certain threshold.” 
+
+Extend the hypothesis to women’s wear vs. men’s wear, skincare vs. colour cosmetics, or urban vs. rural split. 
+
+Case Deliverables: 
+
+A short 3–5 page PDF summary including: 
+
+A 1-slide executive insight summarizing findings 
+
+Charts/tables visualizing the trend & comparison 
+
+1-slide insight card with India vs other countries snapshot 
+
+Commentary on the Korean Beauty breakout case and potential Indian parallels
+
+Data Description (I was not given this data, I found it) - 
+
+World Bank CSVs-
+1. "NE.CON.PRVT.PC.KD","Households and NPISHs Final consumption expenditure per capita (constant 2015 US$)","This field includes expenditure on goods and services by the Household and NPISH sector for the direct satisfaction of human needs or wants, whether individual or collective. The core indicator has been divided by the general population to achieve a per capita estimate.This indicator is expressed in constant prices, meaning the series has been adjusted to account for price changes over time. The reference year for this adjustment is 2015. This indicator is expressed in United States dollars.","Country official statistics, National Statistical Organizations and/or Central Banks
+
+2. NY.GDP.PCAP.PP.KD","GDP per capita, PPP (constant 2021 international $)","This indicator provides values for gross domestic product (GDP) expressed in constant international dollars, converted by purchasing power parities (PPPs). PPPs account for the different price levels across countries and thus PPP-based comparisons of economic output are more appropriate for comparing the output of economies and the average material well-being of their inhabitants than exchange-rate based comparisons. 
+
+3. "SP.POP.TOTL","Population, total","Total population is based on the de facto definition of population, which counts all residents regardless of legal status or citizenship. The values shown are midyear estimates.","World Population Prospects, United Nations (UN), uri: https://population.un.org/wpp/, publisher: UN Population Division;
+
+UN Comtrade CSV(s) - 4 csv files for different periods, each containing all trade flows including- Import, Export, Domestic Export, Foreign Import, Import of goods for inward processing, Import of goods after outward processing, Re-import, Re-export, Export of goods after inward processing, Export of goods for outward processing. Codes included in CSV files: HS 3303–3307 along with HS 6101, 6102, 6103, 6104, 6203, 6204 (descriptions given below), and the partner is World. Think about which flows would be most relevant for the task at hand, given the GDP per capita and spending data above, and then write the steps to be taken. (A sample data file, which is a subset of actual data to show what fields are available, is attached.) 
+
+6101 – Men's or boys' overcoats, car coats, capes, cloaks, anoraks (including ski jackets), windcheaters, wind-jackets and similar articles, knitted or crocheted, other than those of heading 6103  
+6102 – Women's or girls' overcoats, car coats, capes, cloaks, anoraks (including ski jackets), windcheaters, wind-jackets and similar articles, knitted or crocheted, other than those of heading 6104  
+6103 – Men's or boys' suits, ensembles, jackets, blazers, trousers, bib and brace overalls, breeches and shorts (other than swimwear), knitted or crocheted  
+6104 – Women's or girls' suits, ensembles, jackets, blazers, dresses, skirts, divided skirts, trousers, bib and brace overalls, breeches and shorts (other than swimwear), knitted or crocheted  
+6203 – Men's or boys' suits, ensembles, jackets, blazers, trousers, bib and brace overalls, breeches and shorts (other than swimwear)  
+6204 – Women's or girls' suits, ensembles, jackets, blazers, dresses, skirts, divided skirts, trousers, bib and brace overalls, breeches and shorts (other than swimwear)
+
+Your instructions - 
+
+You have to create the case report from the analysis done (think how to present the 1 executive slide, what graphs to put with what catchy headers and how to organize it). The same things you have to do for the report as well, how to structure it - the graphs, text blocks, analysis,  key take aways etc. Think from the perspective of the judges who wrote the case who will be looking at this report. 
+
+You need to give me the latex code for the entire report including the executive summary, india vs other countries snapshot, and the rest of the analysis. 
+
+Make sure you have a section explaining the data used, the proxies used to do the analysis, reasons for tradeoffs (if any)
+Organize everything neatly on the report, include the graphs in the logical progression (I have named the plots in order of tasks, T1 for task 1, T2 for task 2 and HT for task 3). Make sure all charts are properly given figure names, and same for table names. 
+
+Ensure professional tone in the report, include page numbers on the bottom right. Ensure there is a cover page for the report highlighting my name Arnav Jaitly and the date (August 2025)
+
+There are a 32 charts that I have in the file, I understand that you cannot fit them all on the report (for excluded charts add an appendix, don't worry about the page limit, the main report will still be consolidated in the 5 pages). Each Task needs its own section. The "figure" and "table" text should be bold everywhere. Reduce margins to fit more data. Have at least two important charts on the main executive slide. Ensure important takeaways are bolded, tradeoffs are in italics. 
+
+It would be a great help to see subsections like - What we did, What the numbers show, Why it matters for all the tasks. It helps someone with non-technical background to interpret the analysis. 
+
+Ensure that the appendix is well detailed, including analysis results, charts (all well labelled), include the links to datasets (You can leave these blank, I'll add them)

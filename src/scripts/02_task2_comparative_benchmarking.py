@@ -398,7 +398,7 @@ def alignment_chart(df, india_gdp):
 def beauty_share_overlay(df):
     """2.3 Beautified BeautyShare overlay plot with enhanced styling"""
     
-    fig, ax = plt.subplots(figsize=(16, 10))
+    fig, ax = plt.subplots(figsize=(8, 5))
     
     countries = df['country'].unique()
     other_countries = [c for c in countries if c != 'india']
@@ -434,20 +434,17 @@ def beauty_share_overlay(df):
         ax.annotate('India Today', 
                    xy=(latest_india['gdppcppp'], latest_india['BeautyShare'] * 100),
                    xytext=(0, -30), textcoords='offset points',
-                   fontsize=14, fontweight='bold', ha='center',
+                   fontsize=12, fontweight='bold', ha='center',
                    bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
                             edgecolor=COUNTRY_COLORS['india'], alpha=0.9))
     
-    # Enhanced styling and labels
-    ax.set_xlabel('GDP per Capita PPP', 
-                 fontsize=22, fontweight='bold')
-    ax.set_ylabel('Beauty Share of Household Consumption (%)', 
-                 fontsize=22, fontweight='bold')
-    ax.set_title('Beauty Consumption Share vs Income Level - India\'s Development Path Among Global Peers', 
-                fontsize=24, fontweight='bold', pad=20)
+    # Enhanced styling and labels - match T1-3 font sizes
+    ax.set_xlabel('GDP per Capita PPP', fontweight='bold')
+    ax.set_ylabel('Beauty Share (%)', fontweight='bold')
+    ax.set_title('India\'s Growth Gap vs Peers', fontweight='bold')
     
-    # Enhanced legend with larger font
-    legend = ax.legend(loc='upper left', fontsize=18, framealpha=0.95, 
+    # Enhanced legend back to original position with smaller font
+    legend = ax.legend(loc='upper left', fontsize=9.5, framealpha=0.95, 
                       edgecolor='gray', fancybox=True, shadow=True,
                       bbox_to_anchor=(0.02, 0.98))
     legend.get_frame().set_facecolor('white')

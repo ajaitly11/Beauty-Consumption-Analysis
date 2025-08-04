@@ -8,6 +8,15 @@ import statsmodels.api as sm
 
 plt.style.use('default')
 
+# Set larger font sizes for better readability
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
+plt.rcParams['legend.fontsize'] = 11
+plt.rcParams['figure.titlesize'] = 16
+
 EMERGING_COUNTRIES = ['brazil', 'china', 'russia', 'mexico', 'india']
 HIGH_INCOME_COUNTRIES = ['japan', 'south korea', 'usa']
 
@@ -186,7 +195,7 @@ def income_matched_snapshot(df):
                  [c.replace('_', ' ').title() for c in high_income_countries])
     
     ax.set_xticks(all_positions)
-    ax.set_xticklabels(all_labels, rotation=0, ha='center', fontsize=11, fontweight='bold')
+    ax.set_xticklabels(all_labels, rotation=0, ha='center', fontsize=16, fontweight='bold')
     
     # Add enhanced value labels on bars
     all_bars = list(bars1) + list(bars2) + list(bars3)
@@ -198,17 +207,16 @@ def income_matched_snapshot(df):
             label_height = bar.get_height() + (ax.get_ylim()[1] * 0.01)
             ax.text(bar.get_x() + bar.get_width()/2, label_height, 
                    f'{cagr:.1f}%', ha='center', va='bottom', 
-                   fontsize=10, fontweight='bold', 
+                   fontsize=15, fontweight='bold', 
                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8, edgecolor='gray'))
     
     # Enhanced styling
-    ax.set_ylabel('5-Year CAGR (%)', fontsize=13, fontweight='bold')
-    ax.set_title('Beauty Consumption Growth: India vs Global Peers\\n' + 
-                'Comparison at Similar Income Levels', 
-                fontsize=15, fontweight='bold', pad=20)
+    ax.set_ylabel('5-Year CAGR (%)', fontsize=20, fontweight='bold')
+    ax.set_title('Beauty Consumption Growth: India vs Global Peers - Comparison at Similar Income Levels', 
+                fontsize=22, fontweight='bold', pad=20)
     
     # Improved legend positioned to avoid covering values
-    legend = ax.legend(loc='upper right', fontsize=11, framealpha=0.95, 
+    legend = ax.legend(loc='upper center', fontsize=16, framealpha=0.95, 
                       edgecolor='gray', fancybox=True, shadow=True)
     legend.get_frame().set_facecolor('white')
     
@@ -348,22 +356,20 @@ def alignment_chart(df, india_gdp):
             
             # Better positioned 'India Today' label (under the star)
             ax.text(0, today_value - 0.7, 'India Today', 
-                   ha='center', va='top', fontweight='bold', fontsize=12,
+                   ha='center', va='top', fontweight='bold', fontsize=14,
                    bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
                             edgecolor='darkred', alpha=0.9, linewidth=2))
     
     # Enhanced styling and labels
-    ax.set_xlabel('Years Since GDP Milestone\\n(Negative = India\'s Build-up to Current Level)', 
-                 fontsize=12, fontweight='bold')
-    ax.set_ylabel('Beauty Consumption per Capita (USD 2015)', 
-                 fontsize=12, fontweight='bold')
-    ax.set_title(f'Beauty Consumption Growth Trajectories\\n' +
-                f'India\'s 5-Year Journey vs Peers\' Post-Milestone Growth\\n' +
-                f'(Countries reaching ${india_gdp:,.0f} GDP per capita)', 
-                fontsize=14, fontweight='bold', pad=20)
+    ax.set_xlabel('Years Since GDP Milestone (Negative = India\'s Build-up to Current Level)', 
+                 fontsize=20, fontweight='bold')
+    ax.set_ylabel('Beauty Consumption per Capita', 
+                 fontsize=20, fontweight='bold')
+    ax.set_title(f'India vs Peers Growth Trajectories (Countries reaching ${india_gdp:,.0f} GDP per capita)', 
+                fontsize=22, fontweight='bold', pad=20)
     
     # Enhanced legend positioned in top left with larger font
-    legend = ax.legend(loc='upper left', fontsize=11, framealpha=0.95, 
+    legend = ax.legend(loc='upper left', fontsize=16, framealpha=0.95, 
                       edgecolor='gray', fancybox=True, shadow=True,
                       bbox_to_anchor=(0.02, 0.98))
     legend.get_frame().set_facecolor('white')
@@ -428,21 +434,20 @@ def beauty_share_overlay(df):
         ax.annotate('India Today', 
                    xy=(latest_india['gdppcppp'], latest_india['BeautyShare'] * 100),
                    xytext=(0, -30), textcoords='offset points',
-                   fontsize=12, fontweight='bold', ha='center',
+                   fontsize=14, fontweight='bold', ha='center',
                    bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
                             edgecolor=COUNTRY_COLORS['india'], alpha=0.9))
     
     # Enhanced styling and labels
-    ax.set_xlabel('GDP per Capita PPP (2021 International $)', 
-                 fontsize=13, fontweight='bold')
+    ax.set_xlabel('GDP per Capita PPP', 
+                 fontsize=22, fontweight='bold')
     ax.set_ylabel('Beauty Share of Household Consumption (%)', 
-                 fontsize=13, fontweight='bold')
-    ax.set_title('Beauty Consumption Share vs Income Level\\n' +
-                'India\'s Development Path Among Global Peers', 
-                fontsize=15, fontweight='bold', pad=20)
+                 fontsize=22, fontweight='bold')
+    ax.set_title('Beauty Consumption Share vs Income Level - India\'s Development Path Among Global Peers', 
+                fontsize=24, fontweight='bold', pad=20)
     
     # Enhanced legend with larger font
-    legend = ax.legend(loc='upper left', fontsize=12, framealpha=0.95, 
+    legend = ax.legend(loc='upper left', fontsize=18, framealpha=0.95, 
                       edgecolor='gray', fancybox=True, shadow=True,
                       bbox_to_anchor=(0.02, 0.98))
     legend.get_frame().set_facecolor('white')
@@ -458,7 +463,7 @@ def beauty_share_overlay(df):
     ax.spines['bottom'].set_linewidth(1.5)
     
     # Format axis ticks
-    ax.tick_params(axis='both', which='major', labelsize=11)
+    ax.tick_params(axis='both', which='major', labelsize=13)
     
     # Add subtle background gradient effect
     ax.set_facecolor('#fafafa')

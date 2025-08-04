@@ -4,6 +4,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import warnings
 warnings.filterwarnings('ignore')
+
+# Set larger font sizes for better readability
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.titlesize'] = 14
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
+plt.rcParams['legend.fontsize'] = 11
+plt.rcParams['figure.titlesize'] = 16
 import scipy.stats
 import statsmodels.api as sm
 from matplotlib.ticker import FuncFormatter, ScalarFormatter
@@ -472,8 +481,8 @@ def create_individual_plot(country, series, results_df, master_df, figures_dir):
     # Set titles and labels
     ax.set_title(f'{country.replace("_", " ").title()} - {series} Consumption\nPiecewise Regression Analysis', 
                 fontsize=16, fontweight='bold', pad=20)
-    ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=14, fontweight='bold')
-    ax.set_ylabel(f'{series} Per Capita (USD)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('GDP Per Capita PPP', fontsize=14, fontweight='bold')
+    ax.set_ylabel(f'{series} Per Capita', fontsize=14, fontweight='bold')
     ax.tick_params(labelsize=12)
     
     # Set log scales
@@ -756,9 +765,9 @@ def create_slope_change_chart(results_df):
         
         # Formatting
         ax.set_yticks(y_positions)
-        ax.set_yticklabels([c.replace('_', ' ').title() for c in countries], fontsize=11)
-        ax.set_xlabel('Slope Change (Δb)', fontsize=12, fontweight='bold')
-        ax.set_title(f'{series}', fontsize=14, fontweight='bold', pad=10)
+        ax.set_yticklabels([c.replace('_', ' ').title() for c in countries], fontsize=14)
+        ax.set_xlabel('Slope Change (Δb)', fontsize=16, fontweight='bold')
+        ax.set_title(f'{series}', fontsize=18, fontweight='bold', pad=10)
         ax.grid(True, alpha=0.3, axis='x')
         ax.axvline(x=0, color='black', linestyle='-', alpha=0.5, linewidth=1)
         
@@ -772,7 +781,7 @@ def create_slope_change_chart(results_df):
             if abs(val) > 0.001:  # Only show labels for non-zero values
                 x_label = bar.get_width() / 2
                 ax.text(x_label, bar.get_y() + bar.get_height()/2, f'{val:.3f}', 
-                       ha='center', va='center', fontweight='bold', fontsize=9, color='white')
+                       ha='center', va='center', fontweight='bold', fontsize=12, color='white')
     
     # Hide unused subplots
     for idx in range(len(available_series), 4):
@@ -780,9 +789,9 @@ def create_slope_change_chart(results_df):
     
     # Overall title and layout
     plt.suptitle('Slope Change at Income Threshold by Country and Category\n(* indicates p < 0.05, sorted by magnitude)', 
-                fontsize=16, fontweight='bold', y=0.95)
+                fontsize=20, fontweight='bold', y=0.98)
     
-    plt.tight_layout(rect=[0, 0, 1, 0.92])  # Leave space for suptitle
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for suptitle
     
     # Save the chart
     script_dir = Path(__file__).resolve().parent.parent.parent
@@ -801,7 +810,7 @@ def create_breakpoint_histogram(results_df):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     axes = axes.flatten()
     
-    # Define consistent bin edges (10k USD width) and axis ranges for all panels
+    # Define consistent bin edges (10k width) and axis ranges for all panels
     bin_edges = np.arange(0, 60000, 10000)  # 0, 10k, 20k, ..., 50k
     x_min, x_max = 0, 55000
     
@@ -893,7 +902,7 @@ def create_breakpoint_histogram(results_df):
                        fontsize=10, fontweight='bold', color='red',
                        bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
                 
-                ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=11, fontweight='bold')
+                ax.set_xlabel('GDP Per Capita PPP', fontsize=11, fontweight='bold')
                 ax.set_ylabel('Number of Countries', fontsize=11, fontweight='bold')
                 ax.set_title(f'{series} Breakpoints\n({len(breakpoints)} countries)', 
                            fontsize=12, fontweight='bold')
@@ -912,7 +921,7 @@ def create_breakpoint_histogram(results_df):
                 ax.text(0.5, 0.5, 'No significant\nbreakpoints found', 
                        ha='center', va='center', transform=ax.transAxes, fontsize=12)
                 ax.set_title(f'{series} Breakpoints', fontsize=12, fontweight='bold')
-                ax.set_xlabel('GDP Per Capita PPP (USD)', fontsize=11, fontweight='bold')
+                ax.set_xlabel('GDP Per Capita PPP', fontsize=11, fontweight='bold')
                 ax.set_ylabel('Number of Countries', fontsize=11, fontweight='bold')
                 ax.set_xlim(x_min, x_max)
                 ax.set_ylim(0, y_max)
@@ -939,7 +948,7 @@ def create_breakpoint_histogram(results_df):
     
     plt.suptitle('Distribution of Income Thresholds by Category\n(Breakpoints where consumption accelerates)', 
                 fontsize=15, fontweight='bold', y=0.95)
-    plt.tight_layout(rect=[0, 0, 1, 0.92])  # Leave space for suptitle
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for suptitle
     
     script_dir = Path(__file__).resolve().parent.parent.parent
     figures_dir = script_dir / "figures"
@@ -1089,8 +1098,8 @@ def create_india_overlay_chart(results_df, master_df):
             else:
                 ax.axvline(peer_bp.iloc[0], color='grey', linestyle=':', alpha=0.4, linewidth=1)
     
-    ax.set_xlabel('GDP Per Capita PPP (2021 International $)', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Beauty Consumption Per Capita (2015 USD)', fontsize=12, fontweight='bold')
+    ax.set_xlabel('GDP Per Capita PPP', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Beauty Consumption Per Capita', fontsize=12, fontweight='bold')
     ax.set_title('India vs Emerging Market Peers: Beauty Consumption Trajectory\nIndia\'s Position Relative to Income Thresholds', 
                 fontsize=14, fontweight='bold')
     ax.legend(loc='lower right')
